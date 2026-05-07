@@ -10,6 +10,7 @@ import enrollmentRoutes from "./routes/enrollment.routes.js";
 import disabilityRoutes from "./routes/disability.routes.js";
 import attendanceRoutes from "./routes/attendance.routes.js";
 import evaluationRoutes from "./routes/evaluation.routes.js";
+import reportRoutes from "./routes/report.routes.js";
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ app.use("/api", enrollmentRoutes);
 app.use("/api", disabilityRoutes);
 app.use("/api", attendanceRoutes);
 app.use("/api", evaluationRoutes);
+app.use("/api", reportRoutes);
 
 // ❌ rota não encontrada
 app.use((req, res) => {
