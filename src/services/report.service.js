@@ -1,45 +1,85 @@
 import { supabase } from "../config/supabase.js";
 
 // ✅ gerar relatório IA
-export const generateStudentReport = async (studentId) => {
+export const generateStudentReport = async (
+  studentId
+) => {
 
-  // 🔥 aluno
-  const { data: student } = await supabase
+  // =========================
+  // 👨‍🎓 ALUNO
+  // =========================
+
+  const {
+    data: student,
+    error: studentError
+  } = await supabase
     .from("students")
     .select("*")
     .eq("id", studentId)
     .single();
 
-  // 🔥 avaliações
-  const { data: evaluations } = await supabase
+  // 🔥 validação profissional
+  if (studentError || !student) {
+    throw new Error("Aluno não encontrado");
+  }
+
+  // =========================
+  // 📚 AVALIAÇÕES
+  // =========================
+
+  const {
+    data: evaluations
+  } = await supabase
     .from("evaluations")
     .select("*")
     .eq("student_id", studentId);
 
-  // 🔥 frequência
-  const { data: attendance } = await supabase
+  // =========================
+  // 📅 FREQUÊNCIA
+  // =========================
+
+  const {
+    data: attendance
+  } = await supabase
     .from("attendance")
     .select("*")
     .eq("student_id", studentId);
 
-  // 🔥 adaptações
-  const { data: disabilities } = await supabase
+  // =========================
+  // ♿ ADAPTAÇÕES
+  // =========================
+
+  const {
+    data: disabilities
+  } = await supabase
     .from("student_disabilities")
     .select("*")
     .eq("student_id", studentId);
 
-  // 🔥 cálculos simples
-  const totalEvaluations = evaluations?.length || 0;
+  // =========================
+  // 📊 MÉDIA
+  // =========================
+
+  const totalEvaluations =
+    evaluations?.length || 0;
 
   const averageScore =
     totalEvaluations > 0
-      ? evaluations.reduce(
-          (acc, item) => acc + Number(item.score || 0),
-          0
-        ) / totalEvaluations
+      ? (
+          evaluations.reduce(
+            (acc, item) =>
+              acc + Number(item.score || 0),
+            0
+          ) / totalEvaluations
+        ).toFixed(1)
       : 0;
 
-  const totalAttendance = attendance?.length || 0;
+  // =========================
+  // 📅 FREQUÊNCIA
+  // =========================
+
+  const totalAttendance =
+    attendance?.length || 0;
 
   const presents =
     attendance?.filter(
@@ -48,18 +88,31 @@ export const generateStudentReport = async (studentId) => {
 
   const attendanceRate =
     totalAttendance > 0
-      ? ((presents / totalAttendance) * 100).toFixed(0)
+      ? (
+          (presents / totalAttendance) * 100
+        ).toFixed(0)
       : 0;
 
-  // 🔥 adaptações
-  const adaptationsText =
-    disabilities?.map(
-      item => `${item.type}: ${item.adaptations}`
-    ).join(", ") || "Nenhuma adaptação registrada";
+  // =========================
+  // ♿ ADAPTAÇÕES
+  // =========================
 
-  // 🔥 parecer IA inicial
+  const adaptationsText =
+    disabilities?.length > 0
+      ? disabilities
+          .map(
+            item =>
+              `${item.type}: ${item.adaptations}`
+          )
+          .join(", ")
+      : "Nenhuma adaptação registrada";
+
+  // =========================
+  // 🧠 PARECER IA
+  // =========================
+
   const report = `
-Aluno: ${student?.name}
+Aluno: ${student.name}
 
 Média Geral: ${averageScore}
 
@@ -87,10 +140,15 @@ As adaptações pedagógicas indicam:
 ${adaptationsText}.
 `;
 
+  // =========================
+  // 🚀 RETORNO
+  // =========================
+
   return {
     student,
     averageScore,
     attendanceRate,
+    adaptationsText,
     report
   };
 };

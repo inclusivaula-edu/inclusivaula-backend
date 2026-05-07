@@ -11,6 +11,9 @@ import disabilityRoutes from "./routes/disability.routes.js";
 import attendanceRoutes from "./routes/attendance.routes.js";
 import evaluationRoutes from "./routes/evaluation.routes.js";
 import reportRoutes from "./routes/report.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
+import alertRoutes from "./routes/alert.routes.js";
+import predictionRoutes from "./routes/prediction.routes.js";
 
 dotenv.config();
 
@@ -38,6 +41,9 @@ app.use("/api", disabilityRoutes);
 app.use("/api", attendanceRoutes);
 app.use("/api", evaluationRoutes);
 app.use("/api", reportRoutes);
+app.use("/api", dashboardRoutes);
+app.use("/api", alertRoutes);
+app.use("/api", predictionRoutes);
 
 // ❌ rota não encontrada
 app.use((req, res) => {
