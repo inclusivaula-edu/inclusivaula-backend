@@ -1,13 +1,20 @@
-import "dotenv/config"; // 👈 carrega o .env antes de tudo
+import "dotenv/config";
 
 import app from "./src/app.js";
 
 const PORT = process.env.PORT || 3000;
 
-// 🔍 DEBUG (pode remover depois)
-console.log("SUPABASE_URL:", process.env.SUPABASE_URL);
-console.log("SUPABASE_KEY:", process.env.SUPABASE_KEY ? "OK" : "NÃO DEFINIDA");
+// 🔍 validação básica de ambiente
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+  console.error("❌ Variáveis de ambiente do Supabase não configuradas!");
+  process.exit(1);
+}
 
+// 🧠 logs de inicialização
+console.log("🚀 Iniciando InclusivAula...");
+console.log("📡 SUPABASE:", "OK");
+
+// 🚀 servidor
 app.listen(PORT, () => {
   console.log(`🚀 InclusivAula rodando na porta ${PORT}`);
 });

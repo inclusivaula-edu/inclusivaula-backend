@@ -1,47 +1,74 @@
-import { supabase } from "../config/supabase.js";
+import { supabase }
+from "../config/supabase.js";
 
-export const authMiddleware = async (req, res, next) => {
+export const authMiddleware =
+async (req, res, next) => {
+
   try {
-    const authHeader = req.headers.authorization;
 
-    // 🔒 verifica se enviou token
+    const authHeader =
+      req.headers.authorization;
+
     if (!authHeader) {
+
       return res.status(401).json({
         success: false,
         error: "Token não enviado"
       });
     }
 
-    // 🔑 formato esperado:
-    // Authorization: Bearer TOKEN
-    const token = authHeader.split(" ")[1];
+    const token =
+      authHeader.split(" ")[1];
 
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        error: "Token mal formatado"
-      });
-    }
+    // 🔥 usuário auth
+    const {
+      data: userData,
+      error: userError
+    } = await supabase.auth.getUser(token);
 
-    // 🔍 valida usuário no Supabase
-    const { data, error } = await supabase.auth.getUser(token);
+    if (userError || !userData.user) {
 
-    if (error || !data.user) {
       return res.status(401).json({
         success: false,
         error: "Token inválido"
       });
     }
 
-    // 👤 usuário autenticado disponível nas rotas
-    req.user = data.user;
+    // 🔥 profile
+    const {
+      data: profile,
+      error: profileError
+    } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userData.user.id)
+      .single();
 
-    console.log("✅ Usuário autenticado:", data.user.email);
+    if (profileError || !profile) {
+
+      return res.status(403).json({
+        success: false,
+        error: "Perfil não encontrado"
+      });
+    }
+
+    // 🔥 injeta request
+    req.user = userData.user;
+
+    req.profile = profile;
+
+    req.schoolId = profile.school_id;
+
+    req.role = profile.role;
 
     next();
 
   } catch (error) {
-    console.error("❌ ERRO AUTH:", error.message);
+
+    console.error(
+      "❌ authMiddleware:",
+      error.message
+    );
 
     return res.status(500).json({
       success: false,

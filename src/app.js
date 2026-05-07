@@ -1,7 +1,15 @@
 import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
 
+// 🔐 middlewares globais (IMPORTANTE)
+import { authMiddleware } from "./middlewares/auth.middleware.js";
+import { secureMiddleware } from "./middlewares/secure.middleware.js";
+import { errorHandler } from "./middlewares/error.middleware.js";
+
+// 📦 rotas
 import lessonRoutes from "./routes/lesson.routes.js";
 import studentRoutes from "./routes/student.routes.js";
 import teacherRoutes from "./routes/teacher.routes.js";
@@ -15,15 +23,13 @@ import dashboardRoutes from "./routes/dashboard.routes.js";
 import alertRoutes from "./routes/alert.routes.js";
 import predictionRoutes from "./routes/prediction.routes.js";
 
-dotenv.config();
-
 const app = express();
 
 // 🔥 middlewares globais
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
-// ✅ rota raiz
+// 🧠 rota de saúde
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -31,7 +37,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// ✅ rotas da API
+// 🔐 rotas da API
 app.use("/api", lessonRoutes);
 app.use("/api", studentRoutes);
 app.use("/api", teacherRoutes);
@@ -52,5 +58,8 @@ app.use((req, res) => {
     error: "Rota não encontrada"
   });
 });
+
+// 🚨 middleware global de erro (OBRIGATÓRIO EM PROD)
+app.use(errorHandler);
 
 export default app;
