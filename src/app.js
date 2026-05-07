@@ -4,6 +4,7 @@ import cors from "cors";
 
 import lessonRoutes from "./routes/lesson.routes.js";
 import studentRoutes from "./routes/student.routes.js";
+import teacherRoutes from "./routes/teacher.routes.js";
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.get("/", (req, res) => {
 // ✅ rotas da API
 app.use("/api", lessonRoutes);
 app.use("/api", studentRoutes);
+app.use("/api", teacherRoutes);
 
 // ❌ rota não encontrada
 app.use((req, res) => {
