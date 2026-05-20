@@ -93,6 +93,14 @@ app.get("/", (req, res) => {
   });
 });
 
+// 🔍 debug temporário
+app.get("/debug", (req, res) => {
+  res.json({
+    dirname: __dirname,
+    routes: join(__dirname, "routes", "*.js")
+  });
+});
+
 // 🔐 rotas da API
 app.use("/api", lessonRoutes);
 app.use("/api", studentRoutes);
