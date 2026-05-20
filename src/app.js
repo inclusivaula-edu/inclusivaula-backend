@@ -3,8 +3,12 @@ dotenv.config();
 
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import swaggerUi from "swagger-ui-express";
+import swaggerJsdoc from "swagger-jsdoc";
 
-// 🔐 middlewares globais (IMPORTANTE)
+// 🔐 middlewares globais
 import { authMiddleware } from "./middlewares/auth.middleware.js";
 import { secureMiddleware } from "./middlewares/secure.middleware.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
@@ -25,15 +29,59 @@ import predictionRoutes from "./routes/prediction.routes.js";
 
 const app = express();
 
+// 🛡️ segurança de headers
+app.use(helmet());
+
+// 🚦 rate limiting global (100 requests por IP a cada 15 minutos)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Muitas requisições. Tente novamente em alguns minutos."
+  }
+});
+app.use("/api", limiter);
+
 // 🔥 middlewares globais
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
+
+// 📚 Swagger
+const swaggerOptions = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "InclusivAula API",
+      version: "1.0.0",
+      description: "API oficial da plataforma InclusivAula"
+    },
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT"
+        }
+      }
+    },
+    security: [{ bearerAuth: [] }]
+  },
+  apis: ["./src/routes/*.js"]
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // 🧠 rota de saúde
 app.get("/", (req, res) => {
   res.json({
     success: true,
-    message: "🚀 InclusivAula API online"
+    message: "🚀 InclusivAula API online",
+    version: "1.0.0",
+    docs: "/docs"
   });
 });
 
@@ -59,7 +107,7 @@ app.use((req, res) => {
   });
 });
 
-// 🚨 middleware global de erro (OBRIGATÓRIO EM PROD)
+// 🚨 middleware global de erro
 app.use(errorHandler);
 
 export default app;
