@@ -1,5 +1,5 @@
-import dotenv from "dotenv";
-dotenv.config();
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
 import express from "express";
 import cors from "cors";
@@ -27,10 +27,18 @@ import dashboardRoutes from "./routes/dashboard.routes.js";
 import alertRoutes from "./routes/alert.routes.js";
 import predictionRoutes from "./routes/prediction.routes.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const app = express();
 
 // 🛡️ segurança de headers
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
+  })
+);
 
 // 🚦 rate limiting global (100 requests por IP a cada 15 minutos)
 const limiter = rateLimit({
@@ -69,7 +77,7 @@ const swaggerOptions = {
     },
     security: [{ bearerAuth: [] }]
   },
-  apis: ["./src/routes/*.js", "./routes/*.js"]
+  apis: [join(__dirname, "routes", "*.js")]
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
