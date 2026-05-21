@@ -52,14 +52,15 @@ export const getJob = async (id) => {
     .from("lessons")
     .select("*")
     .eq("id", id)
-    .single();
+    .order("created_at", { ascending: false })
+    .limit(1);
 
   if (error) {
     console.error("❌ ERRO AO BUSCAR JOB:", error.message);
     return null;
   }
 
-  return data;
+  return data?.[0] ?? null;
 };
 
 export const generatePDF = async (jobId) => {

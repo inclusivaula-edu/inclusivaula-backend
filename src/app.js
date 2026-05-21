@@ -32,6 +32,8 @@ const __dirname = dirname(__filename);
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 // 🛡️ segurança de headers
 app.use(
   helmet({
