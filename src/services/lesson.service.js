@@ -5,8 +5,7 @@ import { supabase } from "../config/supabase.js";
 export const createLessonJob = async (input) => {
   const id = uuidv4();
 
-  // salva no banco
-  await supabase.from("lessons").insert([
+  const { error: insertError } = await supabase.from("lessons").insert([
     {
       id,
       status: "processing",
@@ -15,20 +14,24 @@ export const createLessonJob = async (input) => {
     }
   ]);
 
+  if (insertError) {
+    console.error("❌ ERRO AO INSERIR JOB:", insertError.message, insertError.details);
+  }
+
   console.log("🚀 JOB CRIADO:", id);
 
-  // processamento assíncrono
   setTimeout(async () => {
     try {
       const result = await runNexus7(input);
 
-      await supabase
+      const { error: updateError } = await supabase
         .from("lessons")
-        .update({
-          status: "completed",
-          result
-        })
+        .update({ status: "completed", result })
         .eq("id", id);
+
+      if (updateError) {
+        console.error("❌ ERRO AO ATUALIZAR JOB:", updateError.message);
+      }
 
       console.log("✅ JOB COMPLETO:", id);
     } catch (error) {
@@ -36,10 +39,7 @@ export const createLessonJob = async (input) => {
 
       await supabase
         .from("lessons")
-        .update({
-          status: "error",
-          result: { error: error.message }
-        })
+        .update({ status: "error", result: { error: error.message } })
         .eq("id", id);
     }
   }, 2000);
@@ -70,6 +70,5 @@ export const generatePDF = async (jobId) => {
     return "PDF não disponível";
   }
 
-  // (simples por enquanto - depois evoluímos pra PDF real)
   return `PDF da aula:\n\n${JSON.stringify(job.result, null, 2)}`;
 };
