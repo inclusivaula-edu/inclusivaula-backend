@@ -1,0 +1,353 @@
+# InclusivAula — Documentação Técnica e de Produto
+
+> Educação adaptada. Inclusão de verdade.
+
+---
+
+## 1. Visão geral do produto
+
+A InclusivAula é uma plataforma educacional SaaS que permite a professores do ensino básico gerar planos de aula adaptados com inteligência artificial, com foco em alunos com necessidades educacionais especiais (NEE). A IA (motor Nexus7 + OpenAI GPT-4o-mini) recebe o perfil do aluno — TDAH, autismo, dislexia, baixa visão, deficiência auditiva, deficiência intelectual — e gera aulas estruturadas com estratégia pedagógica, atividades, adaptações e avaliação específicas para aquele perfil.
+
+**Problema resolvido:** professores de inclusão gastam horas por semana adaptando o mesmo conteúdo para diferentes perfis de aluno. A InclusivAula reduz isso para minutos.
+
+**URL de produção:** https://www.inclusivaula.com.br
+
+---
+
+## 2. Arquitetura do sistema
+
+O sistema é composto por três camadas principais que se comunicam entre si.
+
+### 2.1 Frontend React (Vercel)
+
+O frontend é uma SPA (Single Page Application) construída com Vite + React. A autenticação é feita diretamente via Supabase anon key, e as chamadas à IA passam pelo backend Express.
+
+**Repositório:** https://github.com/inclusivaula-edu/inclusivaula-frontend  
+**URL de produção:** https://www.inclusivaula.com.br  
+**Variáveis de ambiente necessárias:**
+
+```
+VITE_API_URL=https://inclusivaula-backend-production.up.railway.app
+VITE_SUPABASE_URL=https://mauafavxvwzcvcotdjdi.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJ...anon_key
+```
+
+### 2.2 Backend Express (Railway)
+
+O backend gerencia a geração de aulas via IA, autenticação de tokens e criação de jobs assíncronos. Usa a service_role key do Supabase para ter acesso irrestrito ao banco.
+
+**Repositório:** https://github.com/inclusivaula-edu/inclusivaula-backend  
+**URL de produção:** https://inclusivaula-backend-production.up.railway.app  
+**Swagger:** https://inclusivaula-backend-production.up.railway.app/docs  
+**Variáveis de ambiente no Railway:**
+
+```
+SUPABASE_URL=https://mauafavxvwzcvcotdjdi.supabase.co
+SUPABASE_KEY=eyJ...service_role_key
+OPENAI_API_KEY=sk-...
+PORT=3000
+```
+
+### 2.3 Banco de dados (Supabase PostgreSQL)
+
+**Instância:** https://mauafavxvwzcvcotdjdi.supabase.co  
+O banco usa isolamento por `school_id` (multi-tenant no mesmo banco). RLS está desabilitado nas tabelas operacionais — o controle de acesso é feito via filtros no código.
+
+---
+
+## 3. Fluxo de geração de aula (pipeline completo)
+
+O pipeline tem 10 etapas que acontecem de forma encadeada entre frontend, backend e IA.
+
+1. O professor preenche o formulário em `/gerar` com tema, perfil do aluno, série, duração e objetivo opcional.
+2. O frontend chama `POST /api/generate-lesson` com o payload: `{ tema, deficiencia, serie, duracao, objetivo, user_id, user_email }`.
+3. O backend cria um UUID único, insere na tabela `lessons` com `status: processing` e retorna o `jobId`.
+4. O backend dispara `runNexus7(input)` em background (setTimeout 2000ms para não bloquear a resposta).
+5. O Nexus7 aplica regras pedagógicas específicas do perfil — por exemplo, para autismo prioriza rotinas visuais e instruções diretas; para TDAH prioriza segmentação de tarefas e pausas frequentes.
+6. O Nexus7 monta um prompt estruturado e chama a OpenAI com model `gpt-4o-mini`, temperatura 0.7, max_tokens 1500.
+7. A OpenAI retorna um JSON com a estrutura: `{ titulo, estrategia, explicacao, atividades[], adaptacoes[], recursos[], avaliacao }`.
+8. O backend atualiza a tabela `lessons` com `status: completed` e `result: resposta_da_ia`.
+9. O frontend faz polling a cada 3 segundos em `GET /api/lesson-status/:jobId`.
+10. Quando `status === completed`, o frontend renderiza a aula em seções coloridas com identidade visual da marca.
+
+---
+
+## 4. Arquitetura multi-tenant
+
+O sistema usa isolamento por `school_id` numa hierarquia de 4 níveis. Cada nível vê apenas os dados que lhe pertencem, controlado por filtros SQL aplicados no código.
+
+**Hierarquia de acesso:**
+
+- **Professor** (`role: teacher`) — vê suas próprias aulas e os alunos da sua escola.
+- **Admin da escola** (`role: school_admin`) — vê aulas e dados de todos os professores da escola.
+- **Secretaria de educação** (`role: secretaria`) — vê dados agregados de todas as escolas do município.
+- **MEC** (`role: mec`) — visão nacional, somente leitura.
+
+**Regra fundamental:** o `school_id` é a chave de isolamento. Todo insert de aluno, aula ou atividade deve incluir o `school_id` do professor logado, obtido via tabela `profiles`.
+
+---
+
+## 5. Modelo de dados (banco InclusivAula)
+
+### Tabela `schools`
+Representa uma escola. É a entidade raiz do isolamento multi-tenant.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | Identificador único da escola |
+| name | text | Nome da escola |
+| city | text | Cidade |
+| state | text | Estado (sigla) |
+| cnpj | text | CNPJ da escola |
+| phone | text | Telefone |
+| address | text | Endereço completo |
+| admin_user_id | uuid FK → auth.users | Usuário administrador da escola |
+| invite_code | text | **[PENDENTE]** Código de convite para novos professores |
+| created_at | timestamp | Data de criação |
+
+### Tabela `teachers`
+Representa um professor vinculado a uma escola.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | Identificador único |
+| user_id | uuid FK → public.users | Usuário autenticado |
+| school_id | uuid FK → schools | Escola do professor |
+| full_name | text | Nome completo |
+| email | text | E-mail |
+| phone | text | Telefone |
+| specialization | text | Área de especialização |
+| created_at | timestamp | Data de criação |
+
+### Tabela `students`
+Representa um aluno vinculado a uma escola.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | Identificador único |
+| school_id | uuid FK → schools | Escola do aluno |
+| full_name | text | Nome completo |
+| birth_date | date | Data de nascimento |
+| grade | text | Série (ex: "7º ano") |
+| disability_type | text | Tipo de NEE (TDAH, Autismo, etc.) |
+| guardian_name | text | Nome do responsável |
+| guardian_phone | text | Telefone do responsável |
+| notes | text | Observações pedagógicas |
+| created_at | timestamp | Data de criação |
+
+### Tabela `profiles`
+Tabela pivot que conecta o usuário autenticado (auth.users) à escola e ao role. É a tabela consultada pelo middleware de autenticação para injetar `school_id` e `role` em cada requisição.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK FK → auth.users | Mesmo ID do usuário Supabase |
+| email | text | E-mail |
+| role | text | teacher / school_admin / secretaria / mec |
+| school_id | uuid FK → schools | Escola vinculada |
+| full_name | text | Nome completo |
+| created_at | timestamp | Data de criação |
+
+### Tabela `lessons`
+Representa uma aula gerada pela IA. Atualmente não tem `student_id` nem `class_id` — isso está pendente de implementação.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid PK | Job ID usado pelo frontend para polling |
+| status | text | processing / completed / error |
+| input | jsonb | Dados enviados pelo professor (tema, perfil, etc.) |
+| result | jsonb | Aula gerada pela IA (titulo, estrategia, etc.) |
+| created_at | timestamp | Data de criação |
+
+**[PENDENTE]** Adicionar `teacher_id`, `class_id` e `student_id` para vincular a aula ao professor, turma e aluno específico.
+
+### Tabela `classes`
+Representa uma turma (ex: "7º ano B, 2026"). **[PENDENTE]** — tabela existe no banco mas ainda não tem telas nem controller implementado.
+
+### Tabela `enrollments`
+Matrícula de um aluno em uma turma. **[PENDENTE]** — estrutura existe mas não está conectada ao fluxo.
+
+### Tabela `attendance`
+Registro de presença por aluno por aula. **[PENDENTE]** — estrutura existe mas não está conectada ao fluxo.
+
+### Tabela `activities`
+Atividades vinculadas a uma aula gerada. **[PENDENTE]** — estrutura existe mas não está conectada ao fluxo.
+
+### Tabela `evaluations`
+Notas e avaliações por aluno por atividade. **[PENDENTE]** — estrutura existe mas não está conectada ao fluxo.
+
+### Tabela `reports`
+Relatórios de progresso por aluno. **[PENDENTE]** — estrutura existe mas não está conectada ao fluxo.
+
+### Tabela `subscriptions`
+Planos de assinatura por escola. **[PENDENTE]** — estrutura existe mas não está conectada ao fluxo de billing.
+
+---
+
+## 6. Estrutura de arquivos
+
+### Backend (`inclusivaula-backend-legacy/src/`)
+
+```
+app.js                          → Express configurado (helmet, rate limit, CORS, Swagger)
+server.js                       → Ponto de entrada, carrega dotenv e escuta na porta
+nexus7/nexus7.js                → Motor de IA com regras pedagógicas + chamada OpenAI
+controllers/
+  lesson.controller.js          → Cria jobs, processa em background, retorna status
+  student.controller.js         → CRUD de alunos
+  teacher.controller.js         → CRUD de professores
+  class.controller.js           → CRUD de turmas (parcialmente implementado)
+  attendance.controller.js      → Registro de presença
+  evaluation.controller.js      → Notas e avaliações
+  enrollment.controller.js      → Matrículas em turmas
+  disability.controller.js      → Tipos de NEE
+  report.controller.js          → Relatórios (placeholder)
+  dashboard.controller.js       → Dados do dashboard (placeholder)
+middlewares/
+  auth.middleware.js             → Valida token Supabase, injeta req.user, req.schoolId, req.role
+  secure.middleware.js           → Verifica req.user e req.schoolId
+routes/                         → Mapeamento de rotas para controllers
+```
+
+### Frontend (`inclusivaula-frontend/src/`)
+
+```
+App.jsx                         → Rotas, PrivateRoute, PublicRoute
+contexts/
+  AuthContext.jsx                → Provider com user, signIn, signOut, onAuthStateChange
+  LessonContext.jsx              → Provider com lesson, jobId, status, reset()
+pages/
+  Login.jsx                     → Tela de login com logo e gradiente
+  Register.jsx                  → Cadastro multi-step (professor → escola → confirmação)
+  Dashboard.jsx                 → Cards: Gerar aula, Alunos, Histórico
+  GenerateLesson.jsx            → Formulário de geração de aula
+  LessonResult.jsx              → Polling + renderização da aula gerada
+  Students.jsx                  → Cadastro e listagem de alunos
+  History.jsx                   → [PENDENTE] Histórico de aulas
+services/
+  supabaseClient.js             → createClient com anon key
+  mapiClient.js                 → Cliente HTTP para o backend (generateLesson, getLessonStatus)
+  schoolClient.js               → Chamadas diretas ao Supabase (createSchool, createTeacher, etc.)
+assets/
+  logo.png                      → Logo completa InclusivAula
+  icone.png                     → Ícone isolado para headers
+```
+
+---
+
+## 7. Identidade visual
+
+A paleta de cores da InclusivAula é baseada em dois eixos cromáticos que representam tecnologia (azul) e natureza/inclusão (verde).
+
+**Cores principais:**
+- Azul primário: `#2B9EC3`
+- Verde secundário: `#4CAF82`
+- Gradiente de ação: `linear-gradient(135deg, #2B9EC3, #4CAF82)`
+- Background de página: `#f5f9ff`
+- Bordas: `#d3d1c7` (0.5px)
+
+**Slogan:** _"Educação adaptada. Inclusão de verdade."_
+
+---
+
+## 8. Fluxo de cadastro multi-step
+
+O cadastro é feito em 3 etapas na rota `/cadastro`. O desafio técnico central é que o Supabase `signUp()` loga o usuário automaticamente, o que dispararia o redirect para `/dashboard` antes de completar as etapas. A solução implementada é fazer `signOut()` imediatamente após o `signUp()`, mantendo o `user_id` em estado local, e fazer o login explícito só na etapa 3 após salvar todos os dados.
+
+**Etapa 1 — Dados pessoais:** cria conta no Supabase Auth, faz signOut imediato, salva `user_id` em state.
+
+**Etapa 2 — Dados da escola:** insere em `public.users`, cria registro em `schools`, cria registro em `teachers`, faz upsert em `profiles`, e só então faz signIn explícito.
+
+**Etapa 3 — Confirmação:** exibe mensagem de sucesso e redireciona para login.
+
+**Tabelas escritas no cadastro (nessa ordem):**
+`auth.users` → `public.users` → `schools` → `teachers` → `profiles`
+
+---
+
+## 9. Próximos passos prioritários
+
+Os itens abaixo estão ordenados por impacto no produto, considerando tanto a experiência do professor quanto a escalabilidade para novas escolas.
+
+### 9.1 Código de convite para escolas [CRÍTICO]
+Sem isso, cada professor que se cadastra cria uma escola nova, mesmo que já exista uma escola no banco. A solução é adicionar `invite_code` (ex: `MARIA2026`) na tabela `schools` e adicionar um segundo caminho no Step 2 do cadastro: "Entrar em escola existente com código de convite".
+
+**SQL necessário:**
+```sql
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS invite_code TEXT UNIQUE;
+UPDATE schools SET invite_code = UPPER(SUBSTR(MD5(id::text), 1, 8));
+```
+
+### 9.2 Vinculação aluno-aula [CRÍTICO]
+Atualmente a aula gerada não é vinculada ao aluno específico. Adicionar `student_id` e `class_id` na tabela `lessons` e no formulário de geração permite que a IA use o perfil completo do aluno (notas, histórico, observações do professor) para personalizar ainda mais o conteúdo.
+
+**SQL necessário:**
+```sql
+ALTER TABLE lessons
+  ADD COLUMN IF NOT EXISTS teacher_id UUID REFERENCES teachers(id),
+  ADD COLUMN IF NOT EXISTS student_id UUID REFERENCES students(id),
+  ADD COLUMN IF NOT EXISTS class_id UUID REFERENCES classes(id);
+```
+
+### 9.3 Histórico de aulas [ALTA]
+A página `/historico` existe mas está vazia. Implementar listagem de aulas geradas, filtradas por professor logado, com possibilidade de rever e reutilizar.
+
+**Query necessária:**
+```javascript
+const { data } = await supabase
+  .from("lessons")
+  .select("*")
+  .eq("input->user_id", user.id)
+  .eq("status", "completed")
+  .order("created_at", { ascending: false });
+```
+
+### 9.4 Gerenciamento de turmas [MÉDIA]
+Criar a tela de turmas para o professor criar uma turma (ex: "7º ano B"), matricular alunos, e gerar aulas para a turma inteira. As tabelas `classes` e `enrollments` já existem — falta o frontend e os controllers.
+
+### 9.5 Ciclo pedagógico completo [MÉDIA]
+Conectar as tabelas `attendance`, `activities`, `evaluations` e `reports` ao fluxo do produto, permitindo que o professor registre presença, lance notas e gere relatórios de progresso dos alunos com NEE.
+
+### 9.6 Integração com MAPI [BAIXA por ora]
+O MAPI (`https://mapi-production-d491.up.railway.app`) está disponível com endpoint `POST /ai/lesson`. A integração substitui a chamada direta ao OpenAI no Nexus7 por uma chamada HTTP ao MAPI, que usa RAG educacional com embeddings da BNCC para conteúdo mais preciso. Requer Bearer token obtido via login no banco MAPI (`bwpugawoynwqstbzqjvt.supabase.co`).
+
+### 9.7 Billing e planos [BAIXA por ora]
+A tabela `subscriptions` existe. Integrar com Asaas ou Stripe para cobrança por escola (plano free com 10 aulas/mês, plano pro ilimitado, plano enterprise para secretarias).
+
+### 9.8 PDF real [BAIXA]
+Atualmente o download de PDF retorna texto puro. Integrar `pdfkit` (Node.js) no backend para gerar um PDF formatado com a identidade visual da InclusivAula.
+
+---
+
+## 10. Decisões arquiteturais registradas
+
+**Por que não migrar para NestJS?** O backend Express já tem 12 módulos funcionais. Migrar para NestJS significaria reescrever código funcionando sem ganho de negócio imediato. Express escala para 100k usuários com infraestrutura adequada.
+
+**Por que multi-tenant no mesmo banco?** Bancos separados por escola seriam caros de manter e desnecessários para o volume atual. Isolamento por `school_id` com filtros SQL é a abordagem correta para escalar até dezenas de milhares de escolas.
+
+**Por que dados no Supabase InclusivAula e não no MAPI?** Dados operacionais (professores, escolas, alunos, aulas) ficam no banco da InclusivAula. O MAPI é o motor de IA — ele consome via API quando precisa gerar conteúdo, não armazena usuários. InclusivAula é o produtor, MAPI é o motor.
+
+**Por que signOut após signUp no cadastro?** O Supabase `signUp()` cria uma sessão automaticamente. Sem o signOut imediato, o `onAuthStateChange` do AuthContext detectaria o usuário logado e redirecionaria para `/dashboard` antes de completar as etapas 2 e 3 do cadastro.
+
+**Por que RLS desabilitado?** As tabelas `lessons`, `profiles`, `schools`, `teachers`, `students` e `users` têm RLS desabilitado para permitir operações via service_role key e via anon key durante o cadastro. O controle de acesso é feito no código via filtros SQL e no middleware de autenticação.
+
+---
+
+## 11. Infraestrutura e deploy
+
+| Serviço | Plataforma | URL |
+|---------|-----------|-----|
+| Frontend | Vercel | https://www.inclusivaula.com.br |
+| Backend | Railway | https://inclusivaula-backend-production.up.railway.app |
+| Banco | Supabase | https://mauafavxvwzcvcotdjdi.supabase.co |
+| Domínio | Registro.br (NS Vercel) | inclusivaula.com.br |
+| IA | OpenAI GPT-4o-mini | via Nexus7 no backend |
+
+**Deploy do frontend:** push para `main` no GitHub dispara deploy automático na Vercel.
+
+**Deploy do backend:** push para `main` no GitHub dispara deploy automático no Railway.
+
+**SSL:** automático via Vercel (Let's Encrypt) para ambos os domínios.
+
+---
+
+*Documentação gerada em maio de 2026. Versão atual: MVP em produção.*
