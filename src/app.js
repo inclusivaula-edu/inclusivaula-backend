@@ -26,6 +26,7 @@ import reportRoutes from "./routes/report.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import alertRoutes from "./routes/alert.routes.js";
 import predictionRoutes from "./routes/prediction.routes.js";
+import exerciseRoutes from "./routes/exercise.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -113,6 +114,7 @@ app.use("/api", disabilityRoutes);
 app.use("/api", attendanceRoutes);
 app.use("/api", evaluationRoutes);
 app.use("/api", reportRoutes);
+app.use("/api", exerciseRoutes);
 app.use("/api", dashboardRoutes);
 app.use("/api", alertRoutes);
 app.use("/api", predictionRoutes);
