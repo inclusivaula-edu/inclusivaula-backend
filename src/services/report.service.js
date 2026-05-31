@@ -188,7 +188,7 @@ Retorne APENAS JSON válido, sem markdown.
   const reportData = JSON.parse(clean);
 
   // ── 7. Salva no banco ─────────────────────────────────────────
-  const { data: saved } = await supabase
+  const { data: saved, error: saveError } = await supabase
     .from("reports")
     .insert([{
       school_id: student.school_id,
@@ -196,10 +196,12 @@ Retorne APENAS JSON válido, sem markdown.
       generated_by: student.school_id,
       report_type: tipo,
       period: periodo || "Período letivo atual",
-      content: reportData
+      content: { report: reportData, metrics: { mediaNota, frequencia, totalAvaliacoes, totalAulas: aulasDoAluno.length } }
     }])
     .select()
     .single();
+
+  if (saveError) console.error("❌ Erro ao salvar relatório:", saveError.message);
 
   return {
     reportId: saved?.id,
