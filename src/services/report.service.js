@@ -196,7 +196,15 @@ Retorne APENAS JSON válido, sem markdown.
       generated_by: student.school_id,
       report_type: tipo,
       period: periodo || "Período letivo atual",
-      content: { report: reportData, metrics: { mediaNota, frequencia, totalAvaliacoes, totalAulas: aulasDoAluno.length } }
+      content: {
+        report: reportData,
+        metrics: {
+          mediaNota,
+          frequencia,
+          totalAvaliacoes,
+          totalAulas: aulasDoAluno.length
+        }
+      }
     }])
     .select()
     .single();
