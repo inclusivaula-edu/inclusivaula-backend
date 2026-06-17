@@ -1,13 +1,20 @@
 import { v4 as uuidv4 } from "uuid";
 import { runNexus7 } from "../nexus7/nexus7.js";
 import { supabase } from "../config/supabase.js";
+import { verificarLimiteAula, incrementarAula, getUsoMensal } from "./usage.service.js";
 
 export const createLessonJob = async (input) => {
   const id = uuidv4();
-
-  // Extrai user_id do input para salvar na coluna real
-  // Necessário para que o RLS (user_id = auth.uid()) funcione corretamente
   const userId = input.user_id || null;
+  const schoolId = input.school_id || null;
+
+  // Verifica limite antes de gerar
+  if (userId) {
+    const limite = await verificarLimiteAula(userId, schoolId);
+    if (!limite.permitido) {
+      throw new Error(limite.mensagem);
+    }
+  }
 
   const { error: insertError } = await supabase.from("lessons").insert([{
     id,
@@ -33,10 +40,14 @@ export const createLessonJob = async (input) => {
         .from("lessons")
         .update({ status: "completed", result })
         .eq("id", id);
+
       if (updateError) {
         console.error("❌ ERRO AO ATUALIZAR JOB:", updateError.message);
+      } else {
+        // Incrementa o contador só após geração bem-sucedida
+        if (userId) await incrementarAula(userId);
+        console.log("✅ JOB COMPLETO:", id);
       }
-      console.log("✅ JOB COMPLETO:", id);
     } catch (error) {
       console.error("❌ ERRO NO JOB:", error.message);
       await supabase
@@ -61,6 +72,11 @@ export const getJob = async (id) => {
     return null;
   }
   return data?.[0] ?? null;
+};
+
+export const getLimiteInfo = async (userId, schoolId) => {
+  const { verificarLimiteAula } = await import("./usage.service.js");
+  return verificarLimiteAula(userId, schoolId);
 };
 
 export const generatePDF = async (jobId) => {

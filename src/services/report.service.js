@@ -1,5 +1,6 @@
 import { supabase } from "../config/supabase.js";
 import OpenAI from "openai";
+import { verificarLimiteRelatorio, incrementarRelatorio } from "./usage.service.js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -11,25 +12,36 @@ const TIPOS_RELATORIO = {
   paee:      { label: "PAEE — Plano de AEE", destinatario: "equipe do AEE e gestão escolar", linguagem: "técnica e detalhada, descrevendo plano de atendimento, recursos e frequência do AEE" }
 };
 
-export const generateStudentReport = async (studentId, tipo = "semestral", periodo = null) => {
+export const generateStudentReport = async (studentId, tipo = "semestral", periodo = null, userId = null) => {
 
+  // Busca o aluno
   const { data: student, error: studentError } = await supabase
     .from("students").select("*").eq("id", studentId).single();
   if (studentError || !student) throw new Error("Aluno não encontrado");
 
+  // Verifica limite de relatórios
+  if (userId) {
+    const limite = await verificarLimiteRelatorio(userId, student.school_id);
+    if (!limite.permitido) throw new Error(limite.mensagem);
+  }
+
+  // Busca aulas do aluno
   const { data: lessons } = await supabase
     .from("lessons").select("id, result, input, created_at, aprovado")
     .eq("status", "completed").order("created_at", { ascending: false }).limit(20);
 
   const aulasDoAluno = (lessons || []).filter(l => l.input?.student_id === studentId);
 
+  // Busca avaliações
   const { data: evaluations } = await supabase
     .from("evaluations").select("*").eq("student_id", studentId)
     .order("evaluation_date", { ascending: false });
 
+  // Busca frequência
   const { data: attendance } = await supabase
     .from("attendance").select("*").eq("student_id", studentId);
 
+  // Calcula métricas
   const totalAvaliacoes = evaluations?.length || 0;
   const mediaNota = totalAvaliacoes > 0
     ? (evaluations.reduce((acc, e) => acc + Number(e.score || 0), 0) / totalAvaliacoes).toFixed(1)
@@ -115,37 +127,29 @@ Retorne APENAS JSON válido, sem markdown.
   const clean = content.replace(/```json|```/g, "").trim();
   const reportData = JSON.parse(clean);
 
-  // Salva no banco — generated_by como NULL para evitar FK constraint
-  const insertPayload = {
-    school_id: student.school_id,
-    student_id: studentId,
-    generated_by: null,
-    report_type: tipo,
-    period: periodo || "Período letivo atual",
-    aprovado: false,
-    content: {
-      report: reportData,
-      metrics: {
-        mediaNota,
-        frequencia,
-        totalAvaliacoes,
-        totalAulas: aulasDoAluno.length
-      }
-    }
-  };
-
-  console.log("Salvando relatório:", { studentId, tipo, school_id: student.school_id });
-
+  // Salva no banco
   const { data: saved, error: saveError } = await supabase
     .from("reports")
-    .insert([insertPayload])
-    .select()
-    .single();
+    .insert([{
+      school_id: student.school_id,
+      student_id: studentId,
+      generated_by: null,
+      report_type: tipo,
+      period: periodo || "Período letivo atual",
+      aprovado: false,
+      content: {
+        report: reportData,
+        metrics: { mediaNota, frequencia, totalAvaliacoes, totalAulas: aulasDoAluno.length }
+      }
+    }])
+    .select().single();
 
   if (saveError) {
-    console.error("❌ Erro ao salvar relatório:", saveError.message, saveError.code, saveError.details, saveError.hint);
+    console.error("❌ Erro ao salvar relatório:", saveError.message);
   } else {
-    console.log("✅ Relatório salvo com ID:", saved?.id);
+    // Incrementa contador só após salvar com sucesso
+    if (userId) await incrementarRelatorio(userId);
+    console.log("✅ Relatório salvo:", saved?.id);
   }
 
   return {
