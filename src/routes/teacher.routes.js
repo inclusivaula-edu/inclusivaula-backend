@@ -1,5 +1,4 @@
 import express from "express";
-
 import {
   createTeacherController,
   getTeachersController,
@@ -7,37 +6,14 @@ import {
   updateTeacherController,
   deleteTeacherController
 } from "../controllers/teacher.controller.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-// ✅ criar
-router.post(
-  "/teachers",
-  createTeacherController
-);
-
-// ✅ listar
-router.get(
-  "/teachers",
-  getTeachersController
-);
-
-// ✅ buscar por id
-router.get(
-  "/teachers/:id",
-  getTeacherByIdController
-);
-
-// ✅ atualizar
-router.put(
-  "/teachers/:id",
-  updateTeacherController
-);
-
-// ✅ deletar
-router.delete(
-  "/teachers/:id",
-  deleteTeacherController
-);
+router.post("/teachers", authMiddleware, createTeacherController);
+router.get("/teachers", authMiddleware, getTeachersController);
+router.get("/teachers/:id", authMiddleware, getTeacherByIdController);
+router.put("/teachers/:id", authMiddleware, updateTeacherController);
+router.delete("/teachers/:id", authMiddleware, deleteTeacherController);
 
 export default router;

@@ -1,7 +1,11 @@
 import { supabase } from "../config/supabase.js";
+import { pickEvaluationFields } from "../utils/sanitize.js";
 
-// ✅ criar avaliação
-export const createEvaluation = async (evaluationData) => {
+export const createEvaluation = async (body, schoolId) => {
+  const evaluationData = {
+    ...pickEvaluationFields(body),
+    school_id: schoolId
+  };
 
   const { data, error } = await supabase
     .from("evaluations")
@@ -9,80 +13,55 @@ export const createEvaluation = async (evaluationData) => {
     .select()
     .single();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ listar avaliações
-export const getEvaluations = async () => {
-
+export const getEvaluations = async (schoolId) => {
   const { data, error } = await supabase
     .from("evaluations")
-    .select(`
-      *,
-      students (*),
-      classes (*)
-    `)
+    .select(`*, students (*), classes (*)`)
+    .eq("school_id", schoolId)
     .order("evaluation_date", { ascending: false });
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ buscar avaliação por id
-export const getEvaluationById = async (id) => {
-
+export const getEvaluationById = async (id, schoolId) => {
   const { data, error } = await supabase
     .from("evaluations")
-    .select(`
-      *,
-      students (*),
-      classes (*)
-    `)
+    .select(`*, students (*), classes (*)`)
     .eq("id", id)
+    .eq("school_id", schoolId)
     .single();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ atualizar avaliação
-export const updateEvaluation = async (id, evaluationData) => {
+export const updateEvaluation = async (id, body, schoolId) => {
+  const updateData = pickEvaluationFields(body);
 
   const { data, error } = await supabase
     .from("evaluations")
-    .update(evaluationData)
+    .update(updateData)
     .eq("id", id)
+    .eq("school_id", schoolId)
     .select()
     .single();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ deletar avaliação
-export const deleteEvaluation = async (id) => {
-
+export const deleteEvaluation = async (id, schoolId) => {
   const { error } = await supabase
     .from("evaluations")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("school_id", schoolId);
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return true;
 };

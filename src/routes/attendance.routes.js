@@ -1,5 +1,4 @@
 import express from "express";
-
 import {
   createAttendanceController,
   getAttendanceController,
@@ -7,37 +6,14 @@ import {
   updateAttendanceController,
   deleteAttendanceController
 } from "../controllers/attendance.controller.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-// ✅ criar
-router.post(
-  "/attendance",
-  createAttendanceController
-);
-
-// ✅ listar
-router.get(
-  "/attendance",
-  getAttendanceController
-);
-
-// ✅ buscar por id
-router.get(
-  "/attendance/:id",
-  getAttendanceByIdController
-);
-
-// ✅ atualizar
-router.put(
-  "/attendance/:id",
-  updateAttendanceController
-);
-
-// ✅ deletar
-router.delete(
-  "/attendance/:id",
-  deleteAttendanceController
-);
+router.post("/attendance", authMiddleware, createAttendanceController);
+router.get("/attendance", authMiddleware, getAttendanceController);
+router.get("/attendance/:id", authMiddleware, getAttendanceByIdController);
+router.put("/attendance/:id", authMiddleware, updateAttendanceController);
+router.delete("/attendance/:id", authMiddleware, deleteAttendanceController);
 
 export default router;

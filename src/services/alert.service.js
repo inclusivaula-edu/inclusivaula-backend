@@ -1,104 +1,59 @@
 import { supabase } from "../config/supabase.js";
 
-export const generateAlerts = async () => {
-
+export const generateAlerts = async (schoolId) => {
   const alerts = [];
 
-  // 🔥 alunos
   const { data: students } = await supabase
     .from("students")
-    .select("*");
+    .select("id, name")
+    .eq("school_id", schoolId);
 
-  for (const student of students || []) {
+  const studentIds = (students || []).map(s => s.id);
+  if (studentIds.length === 0) return alerts;
 
-    // =========================
-    // 📉 FREQUÊNCIA
-    // =========================
+  const [
+    { data: attendance },
+    { data: evaluations }
+  ] = await Promise.all([
+    supabase.from("attendance").select("student_id, status").in("student_id", studentIds),
+    supabase.from("evaluations").select("student_id, score").in("student_id", studentIds)
+  ]);
 
-    const { data: attendance } = await supabase
-      .from("attendance")
-      .select("*")
-      .eq("student_id", student.id);
-
-    const totalAttendance =
-      attendance?.length || 0;
-
-    const presents =
-      attendance?.filter(
-        item => item.status === "present"
-      ).length || 0;
-
-    const attendanceRate =
-      totalAttendance > 0
-        ? (presents / totalAttendance) * 100
-        : 100;
+  for (const student of students) {
+    const studentAttendance = attendance?.filter(a => a.student_id === student.id) || [];
+    const totalAttendance = studentAttendance.length;
+    const presents = studentAttendance.filter(a => a.status === "present").length;
+    const attendanceRate = totalAttendance > 0 ? (presents / totalAttendance) * 100 : 100;
 
     if (attendanceRate < 75) {
-
       alerts.push({
         type: "low_attendance",
-
         student: student.name,
-
-        message:
-          "Aluno com frequência abaixo do recomendado.",
-
+        message: "Aluno com frequência abaixo do recomendado.",
         value: attendanceRate.toFixed(0) + "%"
       });
     }
 
-    // =========================
-    // 📚 DESEMPENHO
-    // =========================
-
-    const { data: evaluations } = await supabase
-      .from("evaluations")
-      .select("*")
-      .eq("student_id", student.id);
-
-    const totalEvaluations =
-      evaluations?.length || 0;
-
-    const averageScore =
-      totalEvaluations > 0
-        ? evaluations.reduce(
-            (acc, item) =>
-              acc + Number(item.score || 0),
-            0
-          ) / totalEvaluations
-        : 10;
+    const studentEvals = evaluations?.filter(e => e.student_id === student.id) || [];
+    const totalEvals = studentEvals.length;
+    const averageScore = totalEvals > 0
+      ? studentEvals.reduce((acc, e) => acc + Number(e.score || 0), 0) / totalEvals
+      : 10;
 
     if (averageScore < 6) {
-
       alerts.push({
         type: "low_performance",
-
         student: student.name,
-
-        message:
-          "Aluno com desempenho abaixo da média.",
-
+        message: "Aluno com desempenho abaixo da média.",
         value: averageScore.toFixed(1)
       });
     }
 
-    // =========================
-    // 🚨 RISCO PEDAGÓGICO
-    // =========================
-
-    if (
-      attendanceRate < 75 &&
-      averageScore < 6
-    ) {
-
+    if (attendanceRate < 75 && averageScore < 6) {
       alerts.push({
         type: "pedagogical_risk",
-
         student: student.name,
-
-        message:
-          "Aluno apresenta risco pedagógico e necessita intervenção.",
-
+        message: "Aluno apresenta risco pedagógico e necessita intervenção.",
         value: "ALTO"
       });
     }

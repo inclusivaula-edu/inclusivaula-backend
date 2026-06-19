@@ -8,12 +8,10 @@ import rateLimit from "express-rate-limit";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
 
-// 🔐 middlewares globais
 import { authMiddleware } from "./middlewares/auth.middleware.js";
 import { secureMiddleware } from "./middlewares/secure.middleware.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 
-// 📦 rotas
 import lessonRoutes from "./routes/lesson.routes.js";
 import studentRoutes from "./routes/student.routes.js";
 import teacherRoutes from "./routes/teacher.routes.js";
@@ -35,15 +33,19 @@ const app = express();
 
 app.set("trust proxy", 1);
 
-// 🛡️ segurança de headers
-app.use(
-  helmet({
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false
-  })
-);
+app.use(helmet());
 
-// 🚦 rate limiting global (100 requests por IP a cada 15 minutos)
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim()).filter(Boolean)
+  : [];
+
+app.use(cors({
+  origin: process.env.NODE_ENV === "production"
+    ? allowedOrigins
+    : true,
+  credentials: true
+}));
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -56,11 +58,8 @@ const limiter = rateLimit({
 });
 app.use("/api", limiter);
 
-// 🔥 middlewares globais
-app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
-// 📚 Swagger
 const swaggerOptions = {
   definition: {
     openapi: "3.0.0",
@@ -84,27 +83,19 @@ const swaggerOptions = {
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// 🧠 rota de saúde
+if (process.env.NODE_ENV !== "production") {
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
+
 app.get("/", (req, res) => {
   res.json({
     success: true,
-    message: "🚀 InclusivAula API online",
-    version: "1.0.0",
-    docs: "/docs"
+    message: "InclusivAula API online",
+    version: "1.0.0"
   });
 });
 
-// 🔍 debug temporário
-app.get("/debug", (req, res) => {
-  res.json({
-    dirname: __dirname,
-    routes: join(__dirname, "routes", "*.js")
-  });
-});
-
-// 🔐 rotas da API
 app.use("/api", lessonRoutes);
 app.use("/api", studentRoutes);
 app.use("/api", teacherRoutes);
@@ -119,7 +110,6 @@ app.use("/api", dashboardRoutes);
 app.use("/api", alertRoutes);
 app.use("/api", predictionRoutes);
 
-// ❌ rota não encontrada
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -127,7 +117,6 @@ app.use((req, res) => {
   });
 });
 
-// 🚨 middleware global de erro
 app.use(errorHandler);
 
 export default app;

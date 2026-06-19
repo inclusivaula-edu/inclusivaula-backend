@@ -1,86 +1,67 @@
 import { supabase } from "../config/supabase.js";
+import { pickDisabilityFields } from "../utils/sanitize.js";
 
-// ✅ criar deficiência/adaptação
-export const createDisability = async (dataInput) => {
+export const createDisability = async (body, schoolId) => {
+  const disabilityData = {
+    ...pickDisabilityFields(body),
+    school_id: schoolId
+  };
 
   const { data, error } = await supabase
     .from("student_disabilities")
-    .insert([dataInput])
+    .insert([disabilityData])
     .select()
     .single();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ listar
-export const getDisabilities = async () => {
-
+export const getDisabilities = async (schoolId) => {
   const { data, error } = await supabase
     .from("student_disabilities")
-    .select(`
-      *,
-      students (*)
-    `)
+    .select(`*, students (*)`)
+    .eq("school_id", schoolId)
     .order("created_at", { ascending: false });
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ buscar por id
-export const getDisabilityById = async (id) => {
-
+export const getDisabilityById = async (id, schoolId) => {
   const { data, error } = await supabase
     .from("student_disabilities")
-    .select(`
-      *,
-      students (*)
-    `)
+    .select(`*, students (*)`)
     .eq("id", id)
+    .eq("school_id", schoolId)
     .single();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ atualizar
-export const updateDisability = async (id, dataInput) => {
+export const updateDisability = async (id, body, schoolId) => {
+  const updateData = pickDisabilityFields(body);
 
   const { data, error } = await supabase
     .from("student_disabilities")
-    .update(dataInput)
+    .update(updateData)
     .eq("id", id)
+    .eq("school_id", schoolId)
     .select()
     .single();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ deletar
-export const deleteDisability = async (id) => {
-
+export const deleteDisability = async (id, schoolId) => {
   const { error } = await supabase
     .from("student_disabilities")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("school_id", schoolId);
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return true;
 };

@@ -125,7 +125,12 @@ Retorne APENAS JSON válido, sem markdown.
 
   const content = response.choices[0].message.content.trim();
   const clean = content.replace(/```json|```/g, "").trim();
-  const reportData = JSON.parse(clean);
+  let reportData;
+  try {
+    reportData = JSON.parse(clean);
+  } catch {
+    throw new Error("A IA retornou uma resposta inválida. Tente novamente.");
+  }
 
   // Salva no banco
   const { data: saved, error: saveError } = await supabase

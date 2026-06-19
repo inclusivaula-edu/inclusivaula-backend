@@ -3,17 +3,26 @@ import { runNexus7 } from "../nexus7/nexus7.js";
 import { supabase } from "../config/supabase.js";
 import { verificarLimiteAula, incrementarAula, getUsoMensal } from "./usage.service.js";
 
+// Lock em memória por usuário — previne race condition no controle de limites.
+// Em deployments multi-instância, substituir por lock distribuído (Redis, etc.).
+const processingLock = new Set();
+
 export const createLessonJob = async (input) => {
   const id = uuidv4();
   const userId = input.user_id || null;
   const schoolId = input.school_id || null;
 
-  // Verifica limite antes de gerar
   if (userId) {
+    if (processingLock.has(userId)) {
+      throw new Error("Aguarde o processamento da aula anterior antes de gerar uma nova.");
+    }
+
     const limite = await verificarLimiteAula(userId, schoolId);
     if (!limite.permitido) {
       throw new Error(limite.mensagem);
     }
+
+    processingLock.add(userId);
   }
 
   const { error: insertError } = await supabase.from("lessons").insert([{
@@ -26,13 +35,11 @@ export const createLessonJob = async (input) => {
   }]);
 
   if (insertError) {
-    console.error("❌ ERRO AO INSERIR JOB:", insertError.message, insertError.details);
+    processingLock.delete(userId);
+    console.error("ERRO AO INSERIR JOB:", insertError.message, insertError.details);
     throw new Error(insertError.message);
   }
 
-  console.log("🚀 JOB CRIADO:", id, "user_id:", userId);
-
-  // Processa a aula de forma assíncrona
   setTimeout(async () => {
     try {
       const result = await runNexus7(input);
@@ -42,20 +49,20 @@ export const createLessonJob = async (input) => {
         .eq("id", id);
 
       if (updateError) {
-        console.error("❌ ERRO AO ATUALIZAR JOB:", updateError.message);
+        console.error("ERRO AO ATUALIZAR JOB:", updateError.message);
       } else {
-        // Incrementa o contador só após geração bem-sucedida
         if (userId) await incrementarAula(userId);
-        console.log("✅ JOB COMPLETO:", id);
       }
     } catch (error) {
-      console.error("❌ ERRO NO JOB:", error.message);
+      console.error("ERRO NO JOB:", error.message);
       await supabase
         .from("lessons")
-        .update({ status: "error", result: { error: error.message } })
+        .update({ status: "error", result: { error: "Falha ao gerar aula" } })
         .eq("id", id);
+    } finally {
+      processingLock.delete(userId);
     }
-  }, 2000);
+  }, 0);
 
   return { id };
 };
@@ -68,7 +75,7 @@ export const getJob = async (id) => {
     .limit(1);
 
   if (error) {
-    console.error("❌ ERRO AO BUSCAR JOB:", error.message);
+    console.error("ERRO AO BUSCAR JOB:", error.message);
     return null;
   }
   return data?.[0] ?? null;

@@ -1,5 +1,6 @@
 import { supabase } from "../config/supabase.js";
 import { runNexus7Exercises } from "../nexus7/nexus7-exercises.js";
+import { internalError } from "../utils/sanitize.js";
 
 export const generateExercises = async (req, res) => {
   try {
@@ -49,7 +50,7 @@ export const generateExercises = async (req, res) => {
 
   } catch (error) {
     console.error("❌ ERRO generateExercises:", error.message);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };
 
@@ -65,7 +66,7 @@ export const getExercisesByLesson = async (req, res) => {
     if (error) throw new Error(error.message);
     return res.json({ success: true, data: data || [] });
   } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };
 
@@ -89,6 +90,6 @@ export const registerGrade = async (req, res) => {
     if (error) throw new Error(error.message);
     return res.status(201).json({ success: true, data });
   } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };

@@ -1,5 +1,4 @@
 import express from "express";
-
 import {
   createClassController,
   getClassesController,
@@ -7,37 +6,14 @@ import {
   updateClassController,
   deleteClassController
 } from "../controllers/class.controller.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-// ✅ criar
-router.post(
-  "/classes",
-  createClassController
-);
-
-// ✅ listar
-router.get(
-  "/classes",
-  getClassesController
-);
-
-// ✅ buscar por id
-router.get(
-  "/classes/:id",
-  getClassByIdController
-);
-
-// ✅ atualizar
-router.put(
-  "/classes/:id",
-  updateClassController
-);
-
-// ✅ deletar
-router.delete(
-  "/classes/:id",
-  deleteClassController
-);
+router.post("/classes", authMiddleware, createClassController);
+router.get("/classes", authMiddleware, getClassesController);
+router.get("/classes/:id", authMiddleware, getClassByIdController);
+router.put("/classes/:id", authMiddleware, updateClassController);
+router.delete("/classes/:id", authMiddleware, deleteClassController);
 
 export default router;

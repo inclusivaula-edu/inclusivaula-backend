@@ -1,5 +1,4 @@
 import express from "express";
-
 import {
   createDisabilityController,
   getDisabilitiesController,
@@ -7,37 +6,14 @@ import {
   updateDisabilityController,
   deleteDisabilityController
 } from "../controllers/disability.controller.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-// ✅ criar
-router.post(
-  "/disabilities",
-  createDisabilityController
-);
-
-// ✅ listar
-router.get(
-  "/disabilities",
-  getDisabilitiesController
-);
-
-// ✅ buscar por id
-router.get(
-  "/disabilities/:id",
-  getDisabilityByIdController
-);
-
-// ✅ atualizar
-router.put(
-  "/disabilities/:id",
-  updateDisabilityController
-);
-
-// ✅ deletar
-router.delete(
-  "/disabilities/:id",
-  deleteDisabilityController
-);
+router.post("/disabilities", authMiddleware, createDisabilityController);
+router.get("/disabilities", authMiddleware, getDisabilitiesController);
+router.get("/disabilities/:id", authMiddleware, getDisabilityByIdController);
+router.put("/disabilities/:id", authMiddleware, updateDisabilityController);
+router.delete("/disabilities/:id", authMiddleware, deleteDisabilityController);
 
 export default router;

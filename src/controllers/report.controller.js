@@ -1,6 +1,7 @@
 import { generateStudentReport } from "../services/report.service.js";
 import { generateStudentReportPDF } from "../services/pdf.service.js";
 import { getPlano, getUsoMensal } from "../services/usage.service.js";
+import { internalError } from "../utils/sanitize.js";
 
 // Gera relatório com IA por tipo — semestral, familia, aee, pei ou paee
 export const generateReportController = async (req, res) => {
@@ -23,7 +24,7 @@ export const generateReportController = async (req, res) => {
     console.error("❌ generateReport:", error.message);
     // Retorna 403 se for erro de limite
     const status = error.message.includes("Limite") ? 403 : 500;
-    return res.status(status).json({ success: false, error: error.message });
+    return res.status(status).json({ success: false, error: internalError(error) });
   }
 };
 
@@ -35,11 +36,12 @@ export const getReportsByStudent = async (req, res) => {
       .from("reports")
       .select("id, report_type, period, created_at, aprovado")
       .eq("student_id", req.params.studentId)
+      .eq("school_id", req.schoolId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return res.json({ success: true, data: data || [] });
   } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };
 
@@ -48,7 +50,7 @@ export const generateReportPDFController = async (req, res) => {
   try {
     const { supabase } = await import("../config/supabase.js");
     const { data: report, error } = await supabase
-      .from("reports").select("*").eq("id", req.params.reportId).single();
+      .from("reports").select("*").eq("id", req.params.reportId).eq("school_id", req.schoolId).single();
 
     if (error || !report) {
       return res.status(404).json({ success: false, error: "Relatório não encontrado" });
@@ -67,7 +69,7 @@ export const generateReportPDFController = async (req, res) => {
   } catch (error) {
     console.error("❌ generateReportPDF:", error.message);
     if (!res.headersSent) {
-      return res.status(500).json({ success: false, error: error.message });
+      return res.status(500).json({ success: false, error: internalError(error) });
     }
   }
 };
@@ -94,6 +96,6 @@ export const getUsageController = async (req, res) => {
       }
     });
   } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };

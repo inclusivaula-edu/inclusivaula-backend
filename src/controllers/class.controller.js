@@ -5,116 +5,55 @@ import {
   updateClass,
   deleteClass
 } from "../services/class.service.js";
+import { internalError } from "../utils/sanitize.js";
 
-// ✅ criar turma
 export const createClassController = async (req, res) => {
   try {
-
-    const newClass = await createClass(req.body);
-
-    return res.status(201).json({
-      success: true,
-      data: newClass
-    });
-
+    const newClass = await createClass(req.body, req.schoolId);
+    return res.status(201).json({ success: true, data: newClass });
   } catch (error) {
-
-    console.error("❌ createClass:", error.message);
-
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error("createClass:", error.message);
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };
 
-// ✅ listar turmas
 export const getClassesController = async (req, res) => {
   try {
-
-    const classes = await getClasses();
-
-    return res.json({
-      success: true,
-      data: classes
-    });
-
+    const classes = await getClasses(req.schoolId);
+    return res.json({ success: true, data: classes });
   } catch (error) {
-
-    console.error("❌ getClasses:", error.message);
-
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error("getClasses:", error.message);
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };
 
-// ✅ buscar por id
 export const getClassByIdController = async (req, res) => {
   try {
-
-    const classItem = await getClassById(req.params.id);
-
-    return res.json({
-      success: true,
-      data: classItem
-    });
-
+    const classItem = await getClassById(req.params.id, req.schoolId);
+    if (!classItem) return res.status(404).json({ success: false, error: "Turma não encontrada" });
+    return res.json({ success: true, data: classItem });
   } catch (error) {
-
-    console.error("❌ getClassById:", error.message);
-
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error("getClassById:", error.message);
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };
 
-// ✅ atualizar
 export const updateClassController = async (req, res) => {
   try {
-
-    const updatedClass = await updateClass(
-      req.params.id,
-      req.body
-    );
-
-    return res.json({
-      success: true,
-      data: updatedClass
-    });
-
+    const updatedClass = await updateClass(req.params.id, req.body, req.schoolId);
+    return res.json({ success: true, data: updatedClass });
   } catch (error) {
-
-    console.error("❌ updateClass:", error.message);
-
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error("updateClass:", error.message);
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };
 
-// ✅ deletar
 export const deleteClassController = async (req, res) => {
   try {
-
-    await deleteClass(req.params.id);
-
-    return res.json({
-      success: true,
-      message: "Turma removida com sucesso"
-    });
-
+    await deleteClass(req.params.id, req.schoolId);
+    return res.json({ success: true, message: "Turma removida com sucesso" });
   } catch (error) {
-
-    console.error("❌ deleteClass:", error.message);
-
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error("deleteClass:", error.message);
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };

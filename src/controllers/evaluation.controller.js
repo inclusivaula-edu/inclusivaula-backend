@@ -5,116 +5,55 @@ import {
   updateEvaluation,
   deleteEvaluation
 } from "../services/evaluation.service.js";
+import { internalError } from "../utils/sanitize.js";
 
-// ✅ criar
 export const createEvaluationController = async (req, res) => {
   try {
-
-    const evaluation = await createEvaluation(req.body);
-
-    return res.status(201).json({
-      success: true,
-      data: evaluation
-    });
-
+    const evaluation = await createEvaluation(req.body, req.schoolId);
+    return res.status(201).json({ success: true, data: evaluation });
   } catch (error) {
-
-    console.error("❌ createEvaluation:", error.message);
-
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error("createEvaluation:", error.message);
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };
 
-// ✅ listar
 export const getEvaluationsController = async (req, res) => {
   try {
-
-    const evaluations = await getEvaluations();
-
-    return res.json({
-      success: true,
-      data: evaluations
-    });
-
+    const evaluations = await getEvaluations(req.schoolId);
+    return res.json({ success: true, data: evaluations });
   } catch (error) {
-
-    console.error("❌ getEvaluations:", error.message);
-
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error("getEvaluations:", error.message);
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };
 
-// ✅ buscar por id
 export const getEvaluationByIdController = async (req, res) => {
   try {
-
-    const evaluation = await getEvaluationById(req.params.id);
-
-    return res.json({
-      success: true,
-      data: evaluation
-    });
-
+    const evaluation = await getEvaluationById(req.params.id, req.schoolId);
+    if (!evaluation) return res.status(404).json({ success: false, error: "Avaliação não encontrada" });
+    return res.json({ success: true, data: evaluation });
   } catch (error) {
-
-    console.error("❌ getEvaluationById:", error.message);
-
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error("getEvaluationById:", error.message);
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };
 
-// ✅ atualizar
 export const updateEvaluationController = async (req, res) => {
   try {
-
-    const evaluation = await updateEvaluation(
-      req.params.id,
-      req.body
-    );
-
-    return res.json({
-      success: true,
-      data: evaluation
-    });
-
+    const evaluation = await updateEvaluation(req.params.id, req.body, req.schoolId);
+    return res.json({ success: true, data: evaluation });
   } catch (error) {
-
-    console.error("❌ updateEvaluation:", error.message);
-
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error("updateEvaluation:", error.message);
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };
 
-// ✅ deletar
 export const deleteEvaluationController = async (req, res) => {
   try {
-
-    await deleteEvaluation(req.params.id);
-
-    return res.json({
-      success: true,
-      message: "Avaliação removida com sucesso"
-    });
-
+    await deleteEvaluation(req.params.id, req.schoolId);
+    return res.json({ success: true, message: "Avaliação removida com sucesso" });
   } catch (error) {
-
-    console.error("❌ deleteEvaluation:", error.message);
-
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error("deleteEvaluation:", error.message);
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };

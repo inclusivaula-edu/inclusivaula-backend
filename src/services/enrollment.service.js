@@ -1,7 +1,11 @@
 import { supabase } from "../config/supabase.js";
+import { pickEnrollmentFields } from "../utils/sanitize.js";
 
-// ✅ criar matrícula
-export const createEnrollment = async (enrollmentData) => {
+export const createEnrollment = async (body, schoolId) => {
+  const enrollmentData = {
+    ...pickEnrollmentFields(body),
+    school_id: schoolId
+  };
 
   const { data, error } = await supabase
     .from("enrollments")
@@ -9,63 +13,40 @@ export const createEnrollment = async (enrollmentData) => {
     .select()
     .single();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ listar matrículas
-export const getEnrollments = async () => {
-
+export const getEnrollments = async (schoolId) => {
   const { data, error } = await supabase
     .from("enrollments")
-    .select(`
-      *,
-      students (*),
-      classes (*)
-    `)
+    .select(`*, students (*), classes (*)`)
+    .eq("school_id", schoolId)
     .order("created_at", { ascending: false });
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ buscar matrícula por id
-export const getEnrollmentById = async (id) => {
-
+export const getEnrollmentById = async (id, schoolId) => {
   const { data, error } = await supabase
     .from("enrollments")
-    .select(`
-      *,
-      students (*),
-      classes (*)
-    `)
+    .select(`*, students (*), classes (*)`)
     .eq("id", id)
+    .eq("school_id", schoolId)
     .single();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ deletar matrícula
-export const deleteEnrollment = async (id) => {
-
+export const deleteEnrollment = async (id, schoolId) => {
   const { error } = await supabase
     .from("enrollments")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("school_id", schoolId);
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return true;
 };

@@ -1,7 +1,11 @@
 import { supabase } from "../config/supabase.js";
+import { pickAttendanceFields } from "../utils/sanitize.js";
 
-// ✅ criar frequência
-export const createAttendance = async (attendanceData) => {
+export const createAttendance = async (body, schoolId) => {
+  const attendanceData = {
+    ...pickAttendanceFields(body),
+    school_id: schoolId
+  };
 
   const { data, error } = await supabase
     .from("attendance")
@@ -9,80 +13,55 @@ export const createAttendance = async (attendanceData) => {
     .select()
     .single();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ listar frequências
-export const getAttendance = async () => {
-
+export const getAttendance = async (schoolId) => {
   const { data, error } = await supabase
     .from("attendance")
-    .select(`
-      *,
-      students (*),
-      classes (*)
-    `)
+    .select(`*, students (*), classes (*)`)
+    .eq("school_id", schoolId)
     .order("attendance_date", { ascending: false });
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ buscar frequência por id
-export const getAttendanceById = async (id) => {
-
+export const getAttendanceById = async (id, schoolId) => {
   const { data, error } = await supabase
     .from("attendance")
-    .select(`
-      *,
-      students (*),
-      classes (*)
-    `)
+    .select(`*, students (*), classes (*)`)
     .eq("id", id)
+    .eq("school_id", schoolId)
     .single();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ atualizar frequência
-export const updateAttendance = async (id, attendanceData) => {
+export const updateAttendance = async (id, body, schoolId) => {
+  const updateData = pickAttendanceFields(body);
 
   const { data, error } = await supabase
     .from("attendance")
-    .update(attendanceData)
+    .update(updateData)
     .eq("id", id)
+    .eq("school_id", schoolId)
     .select()
     .single();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data;
 };
 
-// ✅ deletar frequência
-export const deleteAttendance = async (id) => {
-
+export const deleteAttendance = async (id, schoolId) => {
   const { error } = await supabase
     .from("attendance")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("school_id", schoolId);
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return true;
 };
