@@ -1,6 +1,7 @@
 import { supabase } from "../config/supabase.js";
 import OpenAI from "openai";
 import { verificarLimiteRelatorio, incrementarRelatorio } from "./usage.service.js";
+import { sanitizeForPrompt } from "../utils/sanitize.js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -25,12 +26,15 @@ export const generateStudentReport = async (studentId, tipo = "semestral", perio
     if (!limite.permitido) throw new Error(limite.mensagem);
   }
 
-  // Busca aulas do aluno
+  // Busca aulas do aluno diretamente com filtro no banco
   const { data: lessons } = await supabase
     .from("lessons").select("id, result, input, created_at, aprovado")
-    .eq("status", "completed").order("created_at", { ascending: false }).limit(20);
+    .eq("status", "completed")
+    .eq("school_id", student.school_id)
+    .contains("input", { student_id: studentId })
+    .order("created_at", { ascending: false }).limit(20);
 
-  const aulasDoAluno = (lessons || []).filter(l => l.input?.student_id === studentId);
+  const aulasDoAluno = lessons || [];
 
   // Busca avaliações
   const { data: evaluations } = await supabase
@@ -53,6 +57,18 @@ export const generateStudentReport = async (studentId, tipo = "semestral", perio
 
   const tipoConfig = TIPOS_RELATORIO[tipo] || TIPOS_RELATORIO.semestral;
 
+  // Sanitiza todos os campos do aluno antes de interpolar no prompt
+  const s = {
+    full_name: sanitizeForPrompt(student.full_name),
+    grade: sanitizeForPrompt(student.grade),
+    turma: sanitizeForPrompt(student.turma),
+    birth_date: sanitizeForPrompt(student.birth_date),
+    disability_type: sanitizeForPrompt(student.disability_type),
+    guardian_name: sanitizeForPrompt(student.guardian_name),
+    notes: sanitizeForPrompt(student.notes),
+  };
+  const periodoSafe = sanitizeForPrompt(periodo);
+
   const contextoAulas = aulasDoAluno.length > 0
     ? aulasDoAluno.slice(0, 5).map(a =>
         `- "${a.result?.titulo}" (${new Date(a.created_at).toLocaleDateString("pt-BR")})${a.aprovado ? " ✓ aprovada" : ""}`
@@ -74,16 +90,16 @@ Gere um ${tipoConfig.label} completo e detalhado.
 TIPO: ${tipoConfig.label}
 DESTINATÁRIO: ${tipoConfig.destinatario}
 LINGUAGEM: ${tipoConfig.linguagem}
-PERÍODO: ${periodo || "Período letivo atual"}
+PERÍODO: ${periodoSafe || "Período letivo atual"}
 
 DADOS DO ALUNO:
-Nome: ${student.full_name}
-Série: ${student.grade || "Não informada"}
-Turma: ${student.turma || "Não informada"}
-Data de nascimento: ${student.birth_date || "Não informada"}
-NEE: ${student.disability_type || "Não especificada"}
-Responsável: ${student.guardian_name || "Não informado"}
-Observações: ${student.notes || "Nenhuma"}
+Nome: ${s.full_name}
+Série: ${s.grade || "Não informada"}
+Turma: ${s.turma || "Não informada"}
+Data de nascimento: ${s.birth_date || "Não informada"}
+NEE: ${s.disability_type || "Não especificada"}
+Responsável: ${s.guardian_name || "Não informado"}
+Observações: ${s.notes || "Nenhuma"}
 
 AULAS GERADAS PARA O ALUNO: ${aulasDoAluno.length}
 ${contextoAulas}
@@ -98,8 +114,8 @@ Retorne APENAS JSON válido, sem markdown.
 {
   "tipo": "${tipo}",
   "titulo": "título do relatório",
-  "periodo": "${periodo || "Período letivo atual"}",
-  "aluno": { "nome": "${student.full_name}", "serie": "${student.grade || ""}", "turma": "${student.turma || ""}", "nee": "${student.disability_type || ""}" },
+  "periodo": "${periodoSafe || "Período letivo atual"}",
+  "aluno": { "nome": "${s.full_name}", "serie": "${s.grade || ""}", "turma": "${s.turma || ""}", "nee": "${s.disability_type || ""}" },
   "sumario_executivo": "parágrafo resumindo o período",
   "desenvolvimento_academico": "análise do desempenho acadêmico",
   "desenvolvimento_social": "análise social e comportamental",

@@ -51,17 +51,29 @@ export function pickEvaluationFields(body) {
   ]);
 }
 
-// Mitigação básica de prompt injection em campos de texto livre
+// Mitigação de prompt injection em campos de texto livre
 export function sanitizeForPrompt(text) {
   if (text === null || text === undefined) return "";
   if (typeof text !== "string") return String(text);
   return text
+    // Padrões clássicos de injeção
     .replace(/ignore\s+(all\s+)?(previous|prior|above)\s+instructions?/gi, "[removido]")
+    .replace(/disregard\s+(all\s+)?(previous|prior|above)\s+instructions?/gi, "[removido]")
+    .replace(/forget\s+(all\s+)?(previous|prior|above)/gi, "[removido]")
+    .replace(/you\s+are\s+now/gi, "[removido]")
+    .replace(/new\s+instructions?:/gi, "[removido]")
+    // Tokens de sistema de vários modelos
     .replace(/\[SYSTEM\]/gi, "[removido]")
     .replace(/\[INST\]/gi, "[removido]")
-    .replace(/###\s*instruc/gi, "[removido]")
     .replace(/<\|.*?\|>/g, "[removido]")
-    .substring(0, 2000);
+    .replace(/###\s*instruc/gi, "[removido]")
+    .replace(/<<SYS>>/gi, "[removido]")
+    // Tentativas de injeção via roles
+    .replace(/\bsystem\s*:/gi, "[removido]")
+    .replace(/\bassistant\s*:/gi, "[removido]")
+    // Remove backticks em excesso (injeção de código)
+    .replace(/`{3,}/g, "")
+    .substring(0, 1000);
 }
 
 export function internalError(error) {

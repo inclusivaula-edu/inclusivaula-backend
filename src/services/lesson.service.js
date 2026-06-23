@@ -67,6 +67,17 @@ export const createLessonJob = async (input) => {
   return { id };
 };
 
+// Cleanup de jobs presos em "processing" por mais de 10 minutos
+const cleanupStuckJobs = async () => {
+  const cutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  await supabase
+    .from("lessons")
+    .update({ status: "error", result: { error: "Tempo limite de processamento excedido" } })
+    .eq("status", "processing")
+    .lt("created_at", cutoff);
+};
+setInterval(cleanupStuckJobs, 5 * 60 * 1000);
+
 export const getJob = async (id) => {
   const { data, error } = await supabase
     .from("lessons")
@@ -82,12 +93,5 @@ export const getJob = async (id) => {
 };
 
 export const getLimiteInfo = async (userId, schoolId) => {
-  const { verificarLimiteAula } = await import("./usage.service.js");
   return verificarLimiteAula(userId, schoolId);
-};
-
-export const generatePDF = async (jobId) => {
-  const job = await getJob(jobId);
-  if (!job || !job.result) return "PDF não disponível";
-  return `PDF da aula:\n\n${JSON.stringify(job.result, null, 2)}`;
 };

@@ -25,6 +25,7 @@ import dashboardRoutes from "./routes/dashboard.routes.js";
 import alertRoutes from "./routes/alert.routes.js";
 import predictionRoutes from "./routes/prediction.routes.js";
 import exerciseRoutes from "./routes/exercise.routes.js";
+import billingRoutes from "./routes/billing.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -39,6 +40,11 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim()).filter(Boolean)
   : [];
 
+if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
+  console.error("ERRO: ALLOWED_ORIGINS não configurado em produção. Configure esta variável na Railway.");
+  process.exit(1);
+}
+
 app.use(cors({
   origin: process.env.NODE_ENV === "production"
     ? allowedOrigins
@@ -48,17 +54,35 @@ app.use(cors({
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => req.headers.authorization || req.ip,
   message: {
     success: false,
     error: "Muitas requisições. Tente novamente em alguns minutos."
   }
 });
-app.use("/api", limiter);
 
-app.use(express.json({ limit: "10mb" }));
+// Rate limit restritivo para endpoints que chamam IA (OpenAI)
+const aiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.headers.authorization || req.ip,
+  message: {
+    success: false,
+    error: "Limite de geração por IA atingido. Aguarde alguns minutos."
+  }
+});
+
+app.use("/api", limiter);
+app.use("/api/lessons", aiLimiter);
+app.use("/api/reports", aiLimiter);
+app.use("/api/exercises/generate", aiLimiter);
+
+app.use(express.json({ limit: "200kb" }));
 
 const swaggerOptions = {
   definition: {
@@ -84,7 +108,7 @@ const swaggerOptions = {
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-if (process.env.NODE_ENV !== "production") {
+if (process.env.SWAGGER_ENABLED === "true") {
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 }
 
@@ -94,6 +118,10 @@ app.get("/", (req, res) => {
     message: "InclusivAula API online",
     version: "1.0.0"
   });
+});
+
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 app.use("/api", lessonRoutes);
@@ -109,6 +137,7 @@ app.use("/api", exerciseRoutes);
 app.use("/api", dashboardRoutes);
 app.use("/api", alertRoutes);
 app.use("/api", predictionRoutes);
+app.use("/api", billingRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

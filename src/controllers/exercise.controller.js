@@ -10,8 +10,13 @@ export const generateExercises = async (req, res) => {
       return res.status(400).json({ success: false, error: "lessonId é obrigatório" });
     }
 
+    const qtd = Math.min(Math.max(Number(quantidade) || 5, 1), 20);
+
     const { data: lesson, error: lessonError } = await supabase
-      .from("lessons").select("*").eq("id", lessonId).single();
+      .from("lessons").select("*")
+      .eq("id", lessonId)
+      .eq("teacher_id", req.user?.id)
+      .single();
 
     if (lessonError || !lesson) {
       return res.status(404).json({ success: false, error: "Aula não encontrada" });
@@ -20,11 +25,17 @@ export const generateExercises = async (req, res) => {
     let student = null;
     if (studentId) {
       const { data } = await supabase
-        .from("students").select("*").eq("id", studentId).single();
+        .from("students").select("*")
+        .eq("id", studentId)
+        .eq("school_id", req.schoolId)
+        .single();
       student = data;
+      if (!student) {
+        return res.status(404).json({ success: false, error: "Aluno não encontrado" });
+      }
     }
 
-    const exercicios = await runNexus7Exercises({ lesson, student, quantidade });
+    const exercicios = await runNexus7Exercises({ lesson, student, quantidade: qtd });
 
     const { data: saved, error: saveError } = await supabase
       .from("activities")
@@ -60,6 +71,7 @@ export const getExercisesByLesson = async (req, res) => {
       .from("activities")
       .select("*")
       .eq("lesson_id", req.params.lessonId)
+      .eq("school_id", req.schoolId)
       .eq("activity_type", "exercicios_adaptados")
       .order("created_at", { ascending: false });
 
@@ -74,15 +86,33 @@ export const registerGrade = async (req, res) => {
   try {
     const { activityId, studentId, score, feedback } = req.body;
 
+    if (!activityId || !studentId || score === undefined || score === null) {
+      return res.status(400).json({ success: false, error: "activityId, studentId e score são obrigatórios" });
+    }
+
+    const numScore = Number(score);
+    if (isNaN(numScore) || numScore < 0 || numScore > 10) {
+      return res.status(400).json({ success: false, error: "score deve ser um número entre 0 e 10" });
+    }
+
+    // Verifica que o aluno pertence à escola do professor
+    const { data: student } = await supabase
+      .from("students").select("id")
+      .eq("id", studentId).eq("school_id", req.schoolId).single();
+
+    if (!student) {
+      return res.status(404).json({ success: false, error: "Aluno não encontrado" });
+    }
+
     const { data, error } = await supabase
       .from("evaluations")
       .insert([{
         student_id: studentId,
         school_id: req.schoolId,
         title: "Avaliação de exercícios",
-        score: score,
+        score: numScore,
         max_score: 10,
-        feedback: feedback || null,
+        feedback: feedback ? String(feedback).substring(0, 1000) : null,
         evaluation_date: new Date().toISOString().split("T")[0]
       }])
       .select().single();
