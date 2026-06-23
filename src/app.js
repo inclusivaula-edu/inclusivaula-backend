@@ -26,6 +26,7 @@ import alertRoutes from "./routes/alert.routes.js";
 import predictionRoutes from "./routes/prediction.routes.js";
 import exerciseRoutes from "./routes/exercise.routes.js";
 import billingRoutes from "./routes/billing.routes.js";
+import peiRoutes from "./routes/pei.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -81,6 +82,8 @@ app.use("/api", limiter);
 app.use("/api/lessons", aiLimiter);
 app.use("/api/reports", aiLimiter);
 app.use("/api/exercises/generate", aiLimiter);
+app.use("/api/pei/generate", aiLimiter);
+app.use("/api/aee/generate", aiLimiter);
 
 app.use(express.json({ limit: "200kb" }));
 
@@ -138,6 +141,7 @@ app.use("/api", dashboardRoutes);
 app.use("/api", alertRoutes);
 app.use("/api", predictionRoutes);
 app.use("/api", billingRoutes);
+app.use("/api", peiRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
