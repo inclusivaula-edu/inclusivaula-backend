@@ -5,6 +5,24 @@ import { internalError } from "../utils/sanitize.js";
 
 export const generateLesson = async (req, res) => {
   try {
+    const { tema, deficiencia, serie, duracao } = req.body;
+
+    if (!tema || typeof tema !== "string" || tema.trim().length === 0 || tema.length > 500) {
+      return res.status(400).json({ success: false, error: "Campo 'tema' é obrigatório (máx. 500 caracteres)" });
+    }
+    if (!serie || typeof serie !== "string" || serie.trim().length === 0 || serie.length > 100) {
+      return res.status(400).json({ success: false, error: "Campo 'serie' é obrigatório (máx. 100 caracteres)" });
+    }
+    if (!deficiencia || typeof deficiencia !== "string" || deficiencia.trim().length === 0 || deficiencia.length > 100) {
+      return res.status(400).json({ success: false, error: "Campo 'deficiencia' é obrigatório" });
+    }
+    if (duracao !== undefined) {
+      const d = Number(duracao);
+      if (!Number.isFinite(d) || d < 15 || d > 300) {
+        return res.status(400).json({ success: false, error: "Campo 'duracao' deve ser um número entre 15 e 300" });
+      }
+    }
+
     const user = req.user;
     const job = await createLessonJob({
       ...req.body,

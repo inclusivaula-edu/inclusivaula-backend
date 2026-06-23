@@ -1,11 +1,25 @@
 import { config } from "dotenv";
 config();
 
+const REQUIRED = ["SUPABASE_URL", "SUPABASE_KEY", "OPENAI_API_KEY"];
+const missing = REQUIRED.filter(k => !process.env[k] || process.env[k].startsWith("SUBSTITUA"));
+if (missing.length) {
+  console.error(`❌ Variáveis obrigatórias não configuradas: ${missing.join(", ")}`);
+  process.exit(1);
+}
+
+if (!process.env.ASAAS_API_KEY) {
+  console.warn("⚠️  ASAAS_API_KEY não definida — módulo de pagamento desativado");
+}
+
 const { default: app } = await import("./app.js");
 
 const PORT = process.env.PORT ?? 3000;
+const isProduction = process.env.NODE_ENV === "production";
 
 app.listen(PORT, () => {
-  console.log(`🚀 InclusivAula API rodando em http://localhost:${PORT}`);
-  console.log(`📚 Swagger disponível em http://localhost:${PORT}/docs`);
+  console.log(`🚀 InclusivAula API rodando na porta ${PORT} [${isProduction ? "production" : "development"}]`);
+  if (!isProduction) {
+    console.log(`📚 Swagger: http://localhost:${PORT}/docs`);
+  }
 });

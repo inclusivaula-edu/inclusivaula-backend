@@ -5,16 +5,25 @@ function getMesAtual() {
   return new Date().toISOString().slice(0, 7);
 }
 
-// Busca o plano e os limites do usuário
-export const getPlano = async (userId) => {
+// Busca o plano da escola (prefere school_id, cai em user_id para compat retroativa)
+export const getPlano = async (userId, schoolId) => {
+  if (schoolId) {
+    const { data } = await supabase
+      .from("subscriptions")
+      .select("plan, aulas_limite, relatorios_limite, professores_limite, status")
+      .eq("school_id", schoolId)
+      .in("status", ["active", "overdue"])
+      .single();
+    if (data) return data;
+  }
+
   const { data } = await supabase
     .from("subscriptions")
     .select("plan, aulas_limite, relatorios_limite, professores_limite, status")
     .eq("user_id", userId)
-    .eq("status", "active")
+    .in("status", ["active", "overdue"])
     .single();
 
-  // Se não tiver plano, retorna o plano free padrão
   return data || {
     plan: "free",
     aulas_limite: 5,
