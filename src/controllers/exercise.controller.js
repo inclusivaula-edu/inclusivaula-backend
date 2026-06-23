@@ -1,5 +1,6 @@
 import { supabase } from "../config/supabase.js";
 import { runNexus7Exercises } from "../nexus7/nexus7-exercises.js";
+import { runNexus7Rubrica } from "../nexus7/nexus7-rubrica.js";
 import { internalError } from "../utils/sanitize.js";
 
 export const generateExercises = async (req, res) => {
@@ -120,6 +121,50 @@ export const registerGrade = async (req, res) => {
     if (error) throw new Error(error.message);
     return res.status(201).json({ success: true, data });
   } catch (error) {
+    return res.status(500).json({ success: false, error: internalError(error) });
+  }
+};
+
+export const generateRubrica = async (req, res) => {
+  try {
+    const { lessonId, studentId } = req.body;
+
+    if (!lessonId) {
+      return res.status(400).json({ success: false, error: "lessonId é obrigatório" });
+    }
+
+    const { data: lesson, error: lessonError } = await supabase
+      .from("lessons").select("*")
+      .eq("id", lessonId)
+      .eq("teacher_id", req.user?.id)
+      .single();
+
+    if (lessonError || !lesson) {
+      return res.status(404).json({ success: false, error: "Aula não encontrada" });
+    }
+
+    if (lesson.status !== "completed" || !lesson.result) {
+      return res.status(400).json({ success: false, error: "Aula ainda não foi gerada" });
+    }
+
+    let student = null;
+    if (studentId) {
+      const { data } = await supabase
+        .from("students").select("*")
+        .eq("id", studentId)
+        .eq("school_id", req.schoolId)
+        .single();
+      student = data;
+      if (!student) {
+        return res.status(404).json({ success: false, error: "Aluno não encontrado" });
+      }
+    }
+
+    const rubrica = await runNexus7Rubrica({ lesson, student });
+
+    return res.json({ success: true, data: rubrica });
+  } catch (error) {
+    console.error("generateRubrica:", error.message);
     return res.status(500).json({ success: false, error: internalError(error) });
   }
 };

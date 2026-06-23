@@ -82,6 +82,7 @@ app.use("/api", limiter);
 app.use("/api/lessons", aiLimiter);
 app.use("/api/reports", aiLimiter);
 app.use("/api/exercises/generate", aiLimiter);
+app.use("/api/exercises/rubrica", aiLimiter);
 app.use("/api/pei/generate", aiLimiter);
 app.use("/api/aee/generate", aiLimiter);
 
