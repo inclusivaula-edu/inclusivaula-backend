@@ -1,6 +1,10 @@
 import { config } from "dotenv";
 config();
 
+// Polyfill global crypto for Node.js 18 (uuid v14 uses crypto.randomUUID)
+import { webcrypto } from "crypto";
+if (!globalThis.crypto) globalThis.crypto = webcrypto;
+
 const REQUIRED = ["SUPABASE_URL", "SUPABASE_KEY", "OPENAI_API_KEY"];
 const missing = REQUIRED.filter(k => !process.env[k] || process.env[k].startsWith("SUBSTITUA"));
 if (missing.length) {
