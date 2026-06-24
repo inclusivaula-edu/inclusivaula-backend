@@ -12,10 +12,11 @@ const CORES = {
   bordaClara: "#d3d1c7"
 };
 
-// Tenta baixar imagem como buffer — retorna null se falhar
+// Tenta baixar imagem como buffer — retorna null se falhar (com timeout curto)
 async function fetchImageBuffer(url) {
   try {
-    const res = await globalThis.fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!url || typeof url !== "string") return null;
+    const res = await globalThis.fetch(url, { signal: AbortSignal.timeout(3000) });
     if (!res.ok) return null;
     const arrayBuffer = await res.arrayBuffer();
     return Buffer.from(arrayBuffer);
@@ -24,29 +25,60 @@ async function fetchImageBuffer(url) {
   }
 }
 
-// Cria um PDFDocument com footer automático em todas as páginas (via pageAdded event)
-function criarDoc(res, filename) {
-  const doc = new PDFDocument({ margin: 50, size: "A4", autoFirstPage: false });
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-  doc.pipe(res);
-
-  doc.on("pageAdded", () => {
-    // Desenha rodapé imediatamente ao criar a página
-    const yRodape = doc.page.height - 40;
-    doc.moveTo(50, yRodape - 10).lineTo(doc.page.width - 50, yRodape - 10)
-      .strokeColor(CORES.bordaClara).lineWidth(0.5).stroke();
-    doc.fontSize(8).fillColor(CORES.cinza).font("Helvetica")
-      .text(
-        `Gerado por InclusivAula — www.inclusivaula.com.br — ${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}`,
-        50, yRodape, { align: "center", width: doc.page.width - 100 }
-      );
-    // Reseta cursor para o topo da página após desenhar rodapé
-    doc.y = doc.page.margins.top || 50;
-  });
-
-  doc.addPage(); // Primeira página — dispara pageAdded
+// Cria um PDFDocument que escreve em buffer interno.
+// Use enviarPDF(doc, res, filename) ao final para enviar.
+function criarDoc() {
+  const doc = new PDFDocument({ margin: 50, size: "A4", autoFirstPage: true, bufferPages: true });
   return doc;
+}
+
+// Desenha rodapé em todas as páginas após o documento estar pronto
+function desenharRodapeTodasPaginas(doc) {
+  try {
+    const range = doc.bufferedPageRange();
+    for (let i = range.start; i < range.start + range.count; i++) {
+      doc.switchToPage(i);
+      const yRodape = doc.page.height - 40;
+      doc.moveTo(50, yRodape - 10).lineTo(doc.page.width - 50, yRodape - 10)
+        .strokeColor(CORES.bordaClara).lineWidth(0.5).stroke();
+      doc.fontSize(8).fillColor(CORES.cinza).font("Helvetica")
+        .text(
+          `Gerado por InclusivAula — www.inclusivaula.com.br — ${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}`,
+          50, yRodape, { align: "center", width: doc.page.width - 100, lineBreak: false }
+        );
+    }
+  } catch (e) {
+    // Rodapé é decorativo — não derruba o PDF
+    console.error("desenharRodape:", e.message);
+  }
+}
+
+// Finaliza o doc, coleta o buffer e envia. Retorna Promise que resolve só depois do envio.
+function enviarPDF(doc, res, filename) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    doc.on("data", c => chunks.push(c));
+    doc.on("end", () => {
+      try {
+        const buffer = Buffer.concat(chunks);
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.setHeader("Content-Length", buffer.length);
+        res.end(buffer);
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    });
+    doc.on("error", reject);
+    try {
+      desenharRodapeTodasPaginas(doc);
+      doc.flushPages();
+    } catch (e) {
+      console.error("flush:", e.message);
+    }
+    doc.end();
+  });
 }
 
 // Desenha o cabeçalho padrão
@@ -180,7 +212,7 @@ function desenharLista(doc, titulo, itens, cor, y) {
 // ─────────────────────────────────────────────────────────────────
 export const generateStudentReportPDF = async (reportData, res) => {
   const nomeArquivo = `relatorio-${(reportData.student?.full_name || "aluno").replace(/ /g, "-")}.pdf`;
-  const doc = criarDoc(res, nomeArquivo);
+  const doc = criarDoc();
 
   const rep = reportData.report || reportData;
   const aluno = reportData.student;
@@ -230,7 +262,7 @@ export const generateStudentReportPDF = async (reportData, res) => {
   if (rep.observacoes_finais)        y = desenharSecao(doc, "Observações Finais", rep.observacoes_finais, CORES.cinza, y);
   if (rep.base_legal)                desenharSecao(doc, "Base Legal e Científica", rep.base_legal, CORES.cinza, y);
 
-  doc.end();
+  await enviarPDF(doc, res, nomeArquivo);
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -241,7 +273,7 @@ export const generateLessonPDF = async (lessonData, res) => {
   const input = lessonData.input || {};
 
   const nomeArquivo = `aula-${(lesson.titulo || "aula").replace(/ /g, "-")}.pdf`;
-  const doc = criarDoc(res, nomeArquivo);
+  const doc = criarDoc();
 
   const subtitulo = [input.serie, input.disciplina, input.periodo, input.deficiencia].filter(Boolean).join(" · ");
   let y = desenharCabecalho(doc, lesson.titulo || "Plano de Aula", subtitulo);
@@ -293,7 +325,7 @@ export const generateLessonPDF = async (lessonData, res) => {
   if (lesson.avaliacao)          y = desenharSecao(doc, "Avaliação", lesson.avaliacao, CORES.azul, y);
   if (lesson.base_legal)         desenharSecao(doc, "Base Legal e Científica", lesson.base_legal, CORES.cinza, y);
 
-  doc.end();
+  await enviarPDF(doc, res, nomeArquivo);
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -366,10 +398,10 @@ async function gerarPDFPlanoAEE(doc, aee, student, escola, periodo, titulo) {
 export const generateAEEPDF = async (docData, res) => {
   const student = docData.student || {};
   const nomeArquivo = `plano-aee-${(student.full_name || "aluno").replace(/ /g, "-")}.pdf`;
-  const doc = criarDoc(res, nomeArquivo);
+  const doc = criarDoc();
   await gerarPDFPlanoAEE(doc, docData.result || {}, student, docData.escola, docData.periodo,
     "Plano AEE — Atendimento Educacional Especializado");
-  doc.end();
+  await enviarPDF(doc, res, nomeArquivo);
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -378,10 +410,10 @@ export const generateAEEPDF = async (docData, res) => {
 export const generatePAEEPDF = async (docData, res) => {
   const student = docData.student || {};
   const nomeArquivo = `paee-${(student.full_name || "aluno").replace(/ /g, "-")}.pdf`;
-  const doc = criarDoc(res, nomeArquivo);
+  const doc = criarDoc();
   await gerarPDFPlanoAEE(doc, docData.result || {}, student, docData.escola, docData.periodo,
     "PAEE — Plano de Atendimento Educacional Especializado");
-  doc.end();
+  await enviarPDF(doc, res, nomeArquivo);
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -392,7 +424,7 @@ export const generateAvaliacaoPedagogicaPDF = async (docData, res) => {
   const student = docData.student || {};
   const escola = docData.escola;
   const nomeArquivo = `avaliacao-pedagogica-${(student.full_name || "aluno").replace(/ /g, "-")}.pdf`;
-  const doc = criarDoc(res, nomeArquivo);
+  const doc = criarDoc();
 
   const nomeAluno = rep.aluno?.nome || student.full_name || "—";
   let y = desenharCabecalho(doc, rep.titulo || "Avaliação Pedagógica — Elegibilidade ao AEE",
@@ -425,7 +457,7 @@ export const generateAvaliacaoPedagogicaPDF = async (docData, res) => {
   }
 
   if (rep.base_legal) desenharSecao(doc, "Base Legal", rep.base_legal, CORES.cinza, y);
-  doc.end();
+  await enviarPDF(doc, res, nomeArquivo);
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -436,7 +468,7 @@ export const generateAdequacaoCurricularPDF = async (docData, res) => {
   const student = docData.student || {};
   const escola = docData.escola;
   const nomeArquivo = `adequacao-curricular-${(student.full_name || "aluno").replace(/ /g, "-")}.pdf`;
-  const doc = criarDoc(res, nomeArquivo);
+  const doc = criarDoc();
 
   const nomeAluno = rep.aluno?.nome || student.full_name || "—";
   let y = desenharCabecalho(doc, rep.titulo || "Adequação Curricular",
@@ -476,7 +508,7 @@ export const generateAdequacaoCurricularPDF = async (docData, res) => {
 
   if (rep.observacoes_gerais) y = desenharSecao(doc, "Observações Gerais", rep.observacoes_gerais, CORES.cinza, y);
   if (rep.base_legal)         desenharSecao(doc, "Base Legal", rep.base_legal, CORES.cinza, y);
-  doc.end();
+  await enviarPDF(doc, res, nomeArquivo);
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -487,7 +519,7 @@ export const generateTermoCienciaPDF = async (docData, res) => {
   const student = docData.student || {};
   const escola = docData.escola;
   const nomeArquivo = `termo-ciencia-${(student.full_name || "aluno").replace(/ /g, "-")}.pdf`;
-  const doc = criarDoc(res, nomeArquivo);
+  const doc = criarDoc();
 
   const nomeAluno = rep.aluno?.nome || student.full_name || "—";
   let y = desenharCabecalho(doc, rep.titulo || "Termo de Ciência dos Pais/Responsáveis — AEE",
@@ -542,7 +574,7 @@ export const generateTermoCienciaPDF = async (docData, res) => {
     .text("Assinatura do Responsável pela Escola", 50, y, { width: colW, align: "center" });
   doc.text(`Assinatura dos Pais/Responsáveis\n${rep.aluno?.responsavel || ""}`, doc.page.width - 50 - colW, y, { width: colW, align: "center" });
 
-  doc.end();
+  await enviarPDF(doc, res, nomeArquivo);
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -551,7 +583,7 @@ export const generateTermoCienciaPDF = async (docData, res) => {
 export const generateFrequenciaAEEPDF = async (docData, res) => {
   const { sessions, student, escola, periodo } = docData;
   const nomeArquivo = `frequencia-aee-${(student?.full_name || "aluno").replace(/ /g, "-")}.pdf`;
-  const doc = criarDoc(res, nomeArquivo);
+  const doc = criarDoc();
 
   const nomeAluno = student?.full_name || "—";
   let y = desenharCabecalho(doc, "Ficha de Frequência — AEE",
@@ -573,7 +605,7 @@ export const generateFrequenciaAEEPDF = async (docData, res) => {
 
   if (total === 0) {
     y = desenharSecao(doc, "Registros", "Nenhuma sessão de AEE registrada para este aluno no período selecionado.", CORES.cinza, y);
-    doc.end();
+    await enviarPDF(doc, res, nomeArquivo);
     return;
   }
 
@@ -626,7 +658,7 @@ export const generateFrequenciaAEEPDF = async (docData, res) => {
   doc.fontSize(8).fillColor(CORES.amarelo).font("Helvetica-Bold")
     .text("FUNDEB — Esta ficha comprova a dupla matrícula exigida para o cômputo diferenciado de alunos com deficiência (Decreto 7.611/2011 Art. 9). Manter arquivada na escola.", 60, y + 8, { width: doc.page.width - 120 });
 
-  doc.end();
+  await enviarPDF(doc, res, nomeArquivo);
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -638,7 +670,7 @@ export const generatePEIPDF = async (docData, res) => {
   const escola = docData.escola;
 
   const nomeArquivo = `pei-${(student.full_name || "aluno").replace(/ /g, "-")}.pdf`;
-  const doc = criarDoc(res, nomeArquivo);
+  const doc = criarDoc();
 
   const nomeAluno = pei.identificacao?.nome_aluno || student.full_name || "—";
   let y = desenharCabecalho(doc, "PEI — Plano Educacional Individualizado",
@@ -698,5 +730,5 @@ export const generatePEIPDF = async (docData, res) => {
   if (pei.base_legal)
     desenharSecao(doc, "Base Legal", pei.base_legal, CORES.cinza, y);
 
-  doc.end();
+  await enviarPDF(doc, res, nomeArquivo);
 };

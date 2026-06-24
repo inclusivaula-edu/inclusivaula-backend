@@ -102,7 +102,7 @@ export const generateReportPDFController = async (req, res) => {
       escola
     }, res);
   } catch (error) {
-    console.error("❌ generateReportPDF:", error.message);
+    console.error("❌ generateReportPDF:", error.message, error.stack);
     if (!res.headersSent) {
       return res.status(500).json({ success: false, error: internalError(error) });
     }
