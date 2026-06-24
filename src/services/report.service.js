@@ -263,12 +263,12 @@ export const generateStudentReport = async (studentId, tipo = "semestral", perio
     if (!limite.permitido) throw new Error(limite.mensagem);
   }
 
-  // Busca aulas do aluno diretamente com filtro no banco
+  // Busca aulas do aluno (input é text, não jsonb — filtra por ilike)
   const { data: lessons } = await supabase
     .from("lessons").select("id, result, input, created_at, aprovado")
     .eq("status", "completed")
     .eq("school_id", student.school_id)
-    .contains("input", { student_id: studentId })
+    .ilike("input", `%${studentId}%`)
     .order("created_at", { ascending: false }).limit(20);
 
   const aulasDoAluno = lessons || [];
