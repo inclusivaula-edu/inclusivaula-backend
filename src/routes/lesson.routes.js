@@ -3,7 +3,8 @@ import express from "express";
 import {
   generateLesson,
   getLessonStatus,
-  getLessonPDF
+  getLessonPDF,
+  indexApprovedLesson
 } from "../controllers/lesson.controller.js";
 
 import { authMiddleware } from "../middlewares/auth.middleware.js";
@@ -33,6 +34,13 @@ router.get(
   authMiddleware,
   secureMiddleware,
   getLessonPDF
+);
+
+// 🔐 indexar aula aprovada no RAG + memória
+router.post(
+  "/lessons/:id/index-approved",
+  authMiddleware,
+  indexApprovedLesson
 );
 
 export default router;

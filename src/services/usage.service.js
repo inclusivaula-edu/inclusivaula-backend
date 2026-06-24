@@ -26,8 +26,8 @@ export const getPlano = async (userId, schoolId) => {
 
   return data || {
     plan: "free",
-    aulas_limite: 5,
-    relatorios_limite: 1,
+    aulas_limite: 20,
+    relatorios_limite: 10,
     professores_limite: 1,
     status: "active"
   };

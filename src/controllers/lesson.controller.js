@@ -2,6 +2,8 @@ import { createLessonJob, getJob } from "../services/lesson.service.js";
 import { generateLessonPDF } from "../services/pdf.service.js";
 import { supabase } from "../config/supabase.js";
 import { internalError } from "../utils/sanitize.js";
+import { indexDocumentsBatch } from "../nexus7/rag.service.js";
+import { saveToMemory, buildResume } from "../nexus7/memory.service.js";
 
 export const generateLesson = async (req, res) => {
   try {
@@ -51,6 +53,69 @@ export const getLessonStatus = async (req, res) => {
     return res.json({ success: true, status: job.status, data: job.result });
   } catch (error) {
     console.error("getLessonStatus:", error.message);
+    return res.status(500).json({ success: false, error: internalError(error) });
+  }
+};
+
+export const indexApprovedLesson = async (req, res) => {
+  try {
+    const { data: lesson, error } = await supabase
+      .from("lessons")
+      .select("*")
+      .eq("id", req.params.id)
+      .single();
+
+    if (error || !lesson) return res.status(404).json({ success: false, error: "Aula não encontrada" });
+    if (lesson.user_id !== req.user.id) return res.status(403).json({ success: false, error: "Acesso negado" });
+    if (!lesson.result || lesson.status !== "completed") {
+      return res.status(400).json({ success: false, error: "Aula ainda não concluída" });
+    }
+
+    const inp = lesson.input || {};
+    const result = lesson.result;
+
+    // Indexa no RAG (não-bloqueante)
+    indexDocumentsBatch([{
+      source: "aula_aprovada",
+      category: "lesson",
+      title: result.titulo || `Aula: ${inp.tema || "sem tema"}`,
+      content: [
+        result.objetivo_geral || "",
+        result.estrategia || "",
+        (result.atividades || []).map(a => `${a.titulo || ""}: ${a.descricao || ""}`).join(" | ")
+      ].filter(Boolean).join("\n\n"),
+      metadata: {
+        lesson_id: lesson.id,
+        school_id: lesson.school_id,
+        user_id: lesson.user_id,
+        serie: inp.serie,
+        disciplina: inp.disciplina,
+        deficiencia: inp.deficiencia,
+        student_id: inp.student_id
+      }
+    }]).catch(e => console.error("RAG index error:", e.message));
+
+    // Salva na memória do aluno se tiver student_id
+    if (inp.student_id) {
+      saveToMemory({
+        student_id: inp.student_id,
+        school_id: lesson.school_id,
+        user_id: lesson.user_id,
+        type: "lesson",
+        lesson_id: lesson.id,
+        tema: inp.tema,
+        disciplina: inp.disciplina,
+        serie: inp.serie,
+        periodo: inp.periodo,
+        deficiencia: inp.deficiencia,
+        resumo: buildResume("lesson", result, inp),
+        bncc_codes: result.bncc_codes || []
+      }).catch(e => console.error("Memory save error:", e.message));
+    }
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("indexApprovedLesson:", error.message);
     return res.status(500).json({ success: false, error: internalError(error) });
   }
 };
