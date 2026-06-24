@@ -3,6 +3,7 @@ import { runNexus7AEE } from "../nexus7/nexus7-aee.js";
 import { supabase } from "../config/supabase.js";
 import { internalError, sanitizeForPrompt } from "../utils/sanitize.js";
 import { v4 as uuidv4 } from "uuid";
+import { generatePEIPDF, generateAEEPDF } from "../services/pdf.service.js";
 
 export const generatePEI = async (req, res) => {
   try {
@@ -117,6 +118,68 @@ export const listPEIs = async (req, res) => {
   } catch (error) {
     console.error("listPEIs:", error.message);
     return res.status(500).json({ success: false, error: internalError(error) });
+  }
+};
+
+export const approvePEI = async (req, res) => {
+  try {
+    const { data, error } = await supabase.from("pei_documents")
+      .select("id, user_id, school_id").eq("id", req.params.id).single();
+    if (error || !data) return res.status(404).json({ success: false, error: "PEI não encontrado" });
+    if (data.user_id !== req.user.id && data.school_id !== req.schoolId)
+      return res.status(403).json({ success: false, error: "Acesso negado" });
+    await supabase.from("pei_documents").update({ aprovado: true }).eq("id", req.params.id);
+    return res.json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: internalError(error) });
+  }
+};
+
+export const getPEIPDF = async (req, res) => {
+  try {
+    const { data, error } = await supabase.from("pei_documents").select("*").eq("id", req.params.id).single();
+    if (error || !data) return res.status(404).json({ success: false, error: "PEI não encontrado" });
+    if (data.user_id !== req.user.id && data.school_id !== req.schoolId)
+      return res.status(403).json({ success: false, error: "Acesso negado" });
+    const { data: student } = await supabase.from("students").select("*").eq("id", data.student_id).single();
+    const { data: escola } = student?.school_id
+      ? await supabase.from("schools").select("id, name, city, state, logo_url").eq("id", student.school_id).single()
+      : { data: null };
+    await generatePEIPDF({ result: data.result, student, escola, periodo: data.periodo }, res);
+  } catch (error) {
+    console.error("getPEIPDF:", error.message);
+    if (!res.headersSent) return res.status(500).json({ success: false, error: internalError(error) });
+  }
+};
+
+export const approveAEE = async (req, res) => {
+  try {
+    const { data, error } = await supabase.from("aee_documents")
+      .select("id, user_id, school_id").eq("id", req.params.id).single();
+    if (error || !data) return res.status(404).json({ success: false, error: "AEE não encontrado" });
+    if (data.user_id !== req.user.id && data.school_id !== req.schoolId)
+      return res.status(403).json({ success: false, error: "Acesso negado" });
+    await supabase.from("aee_documents").update({ aprovado: true }).eq("id", req.params.id);
+    return res.json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: internalError(error) });
+  }
+};
+
+export const getAEEPDF = async (req, res) => {
+  try {
+    const { data, error } = await supabase.from("aee_documents").select("*").eq("id", req.params.id).single();
+    if (error || !data) return res.status(404).json({ success: false, error: "AEE não encontrado" });
+    if (data.user_id !== req.user.id && data.school_id !== req.schoolId)
+      return res.status(403).json({ success: false, error: "Acesso negado" });
+    const { data: student } = await supabase.from("students").select("*").eq("id", data.student_id).single();
+    const { data: escola } = student?.school_id
+      ? await supabase.from("schools").select("id, name, city, state, logo_url").eq("id", student.school_id).single()
+      : { data: null };
+    await generateAEEPDF({ result: data.result, student, escola, periodo: data.periodo }, res);
+  } catch (error) {
+    console.error("getAEEPDF:", error.message);
+    if (!res.headersSent) return res.status(500).json({ success: false, error: internalError(error) });
   }
 };
 

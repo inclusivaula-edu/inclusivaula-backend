@@ -59,10 +59,15 @@ export const generateReportPDFController = async (req, res) => {
     const { data: student } = await supabase
       .from("students").select("*").eq("id", report.student_id).single();
 
+    const { data: escola } = student?.school_id
+      ? await supabase.from("schools").select("id, name, city, state, logo_url").eq("id", student.school_id).single()
+      : { data: null };
+
     const reportData = {
       report: report.content?.report || report.content,
       metrics: report.content?.metrics || {},
-      student
+      student,
+      escola
     };
 
     await generateStudentReportPDF(reportData, res);
