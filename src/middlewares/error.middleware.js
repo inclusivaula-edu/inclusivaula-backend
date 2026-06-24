@@ -1,6 +1,7 @@
-export const errorHandler = (err, req, res, next) => {
+import { logger } from "../config/logger.js";
 
-  console.error("🔥 ERROR:", err);
+export const errorHandler = (err, req, res, next) => {
+  logger.error({ err, method: req.method, url: req.originalUrl }, "Unhandled error");
 
   res.status(500).json({
     success: false,

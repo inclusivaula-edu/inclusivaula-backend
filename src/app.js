@@ -11,6 +11,7 @@ import swaggerJsdoc from "swagger-jsdoc";
 import { authMiddleware } from "./middlewares/auth.middleware.js";
 import { secureMiddleware } from "./middlewares/secure.middleware.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
+import { logger } from "./config/logger.js";
 
 import lessonRoutes from "./routes/lesson.routes.js";
 import studentRoutes from "./routes/student.routes.js";
@@ -87,6 +88,17 @@ app.use("/api/pei/generate", aiLimiter);
 app.use("/api/aee/generate", aiLimiter);
 
 app.use(express.json({ limit: "200kb" }));
+
+// Request logging
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const ms = Date.now() - start;
+    const level = res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info";
+    logger[level]({ method: req.method, url: req.originalUrl, status: res.statusCode, ms }, "request");
+  });
+  next();
+});
 
 const swaggerOptions = {
   definition: {

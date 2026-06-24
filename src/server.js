@@ -5,6 +5,16 @@ config();
 import { webcrypto } from "crypto";
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
+// ── Crash handlers — sem isso o processo morre sem deixar rastro ──
+process.on("unhandledRejection", (reason) => {
+  console.error("❌ Unhandled Rejection:", reason);
+  process.exit(1);
+});
+process.on("uncaughtException", (err) => {
+  console.error("❌ Uncaught Exception:", err);
+  process.exit(1);
+});
+
 const REQUIRED = ["SUPABASE_URL", "SUPABASE_KEY", "OPENAI_API_KEY"];
 const missing = REQUIRED.filter(k => !process.env[k] || process.env[k].startsWith("SUBSTITUA"));
 if (missing.length) {
