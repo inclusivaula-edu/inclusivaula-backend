@@ -143,7 +143,7 @@ export const getPEIPDF = async (req, res) => {
       return res.status(403).json({ success: false, error: "Acesso negado" });
     const { data: student } = await supabase.from("students").select("*").eq("id", data.student_id).single();
     const { data: escola } = student?.school_id
-      ? await supabase.from("schools").select("id, name, city, state, logo_url").eq("id", student.school_id).single()
+      ? await supabase.from("schools").select("id, name, city, state, address, phone, inep_code, cnpj, logo_url").eq("id", student.school_id).single()
       : { data: null };
     await generatePEIPDF({ result: data.result, student, escola, periodo: data.periodo }, res);
   } catch (error) {
@@ -174,7 +174,7 @@ export const getAEEPDF = async (req, res) => {
       return res.status(403).json({ success: false, error: "Acesso negado" });
     const { data: student } = await supabase.from("students").select("*").eq("id", data.student_id).single();
     const { data: escola } = student?.school_id
-      ? await supabase.from("schools").select("id, name, city, state, logo_url").eq("id", student.school_id).single()
+      ? await supabase.from("schools").select("id, name, city, state, address, phone, inep_code, cnpj, logo_url").eq("id", student.school_id).single()
       : { data: null };
     await generateAEEPDF({ result: data.result, student, escola, periodo: data.periodo }, res);
   } catch (error) {

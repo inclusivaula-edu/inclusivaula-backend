@@ -62,7 +62,18 @@ function desenharCabecalho(doc, titulo, subtitulo) {
 async function desenharEscola(doc, escola, y) {
   if (!escola) return y;
 
-  const h = 56;
+  const linhas = [];
+  const cidadeEstado = [escola.city, escola.state].filter(Boolean).join(" — ");
+  if (cidadeEstado) linhas.push(cidadeEstado);
+  if (escola.address) linhas.push(escola.address);
+  const partesTel = [
+    escola.phone ? `Tel: ${escola.phone}` : "",
+    escola.inep_code ? `INEP: ${escola.inep_code}` : "",
+    escola.cnpj ? `CNPJ: ${escola.cnpj}` : ""
+  ].filter(Boolean);
+  if (partesTel.length) linhas.push(partesTel.join("   |   "));
+
+  const h = Math.max(64, 28 + linhas.length * 13 + 10);
   doc.rect(50, y, doc.page.width - 100, h).fill("#f0f8ff").stroke(CORES.bordaClara);
 
   let logoDrawn = false;
@@ -70,20 +81,25 @@ async function desenharEscola(doc, escola, y) {
     const imgBuf = await fetchImageBuffer(escola.logo_url);
     if (imgBuf) {
       try {
-        doc.image(imgBuf, 58, y + 8, { height: 40, fit: [40, 40] });
+        const logoH = Math.min(h - 12, 48);
+        doc.image(imgBuf, 58, y + 6, { height: logoH, fit: [logoH, logoH] });
         logoDrawn = true;
       } catch { /* ignora falha no logo */ }
     }
   }
 
-  const textX = logoDrawn ? 108 : 62;
+  const textX = logoDrawn ? 116 : 62;
+  const textW = doc.page.width - textX - 54;
+
   doc.fontSize(12).fillColor(CORES.azul).font("Helvetica-Bold")
-    .text(escola.name || "—", textX, y + 10, { width: doc.page.width - textX - 50 });
-  doc.fontSize(9).fillColor(CORES.cinza).font("Helvetica")
-    .text(
-      [escola.city, escola.state].filter(Boolean).join(" — "),
-      textX, y + 28, { width: doc.page.width - textX - 50 }
-    );
+    .text(escola.name || "—", textX, y + 8, { width: textW });
+
+  let ly = y + 24;
+  doc.fontSize(8.5).fillColor(CORES.cinza).font("Helvetica");
+  for (const linha of linhas) {
+    doc.text(linha, textX, ly, { width: textW });
+    ly += 13;
+  }
 
   return y + h + 8;
 }
