@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { runNexus7 } from "../nexus7/nexus7.js";
 import { supabase } from "../config/supabase.js";
 import { verificarLimiteAula, incrementarAula, getUsoMensal } from "./usage.service.js";
+import { saveToMemory, buildResume } from "../nexus7/memory.service.js";
 
 // Lock em memória por usuário — previne race condition no controle de limites.
 // Em deployments multi-instância, substituir por lock distribuído (Redis, etc.).
@@ -52,6 +53,29 @@ export const createLessonJob = async (input) => {
         console.error("ERRO AO ATUALIZAR JOB:", updateError.message);
       } else {
         if (userId) await incrementarAula(userId);
+
+        // Salvar na memória do aluno
+        if (input.student_id) {
+          try {
+            const bnccCodes = (result.bncc || []).map(b => b.codigo).filter(Boolean);
+            await saveToMemory({
+              student_id: input.student_id,
+              school_id: input.school_id,
+              user_id: userId,
+              type: "lesson",
+              lesson_id: id,
+              tema: input.tema,
+              disciplina: input.disciplina,
+              serie: input.serie,
+              periodo: input.periodo,
+              deficiencia: input.deficiencia,
+              resumo: buildResume("lesson", result),
+              bncc_codes: bnccCodes
+            });
+          } catch (memErr) {
+            console.error("Memory save error (non-blocking):", memErr.message);
+          }
+        }
       }
     } catch (error) {
       console.error("ERRO NO JOB:", error.message);

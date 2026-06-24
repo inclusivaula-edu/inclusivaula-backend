@@ -1,5 +1,8 @@
 import OpenAI from "openai";
 import { sanitizeForPrompt } from "../utils/sanitize.js";
+import { getRAGContext } from "./rag.service.js";
+import { getStudentMemory } from "./memory.service.js";
+import { reviewOutput } from "./review.service.js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -201,6 +204,24 @@ export const runNexus7 = async (input) => {
 
   const regrasPedagogicas = aplicarRegrasPedagogicas(deficiencia);
 
+  // RAG: busca contexto real da base de conhecimento
+  let ragContext = "";
+  try {
+    ragContext = await getRAGContext({ tema, disciplina, serie, deficiencia });
+  } catch (err) {
+    console.error("RAG context error (non-blocking):", err.message);
+  }
+
+  // Memória: histórico de aprendizado do aluno
+  let memoryContext = "";
+  if (input.student_id) {
+    try {
+      memoryContext = await getStudentMemory(input.student_id);
+    } catch (err) {
+      console.error("Memory context error (non-blocking):", err.message);
+    }
+  }
+
   const perfilAluno = input.student
     ? `
 PERFIL ESPECÍFICO DO ALUNO:
@@ -243,6 +264,10 @@ ${perfilAluno}
 DIRETRIZES PEDAGÓGICAS OBRIGATÓRIAS PARA ESTE PERFIL
 ═══════════════════════════════════════════════
 ${regrasPedagogicas}
+
+${ragContext}
+
+${memoryContext}
 
 ═══════════════════════════════════════════════
 BASES LEGAIS E CIENTÍFICAS
@@ -306,7 +331,7 @@ explicações fora do JSON. Seja rico e detalhado em cada campo.
 }
 `;
 
-  const resultado = await chamadaComRetry(async () => {
+  const gerado = await chamadaComRetry(async () => {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -317,7 +342,9 @@ conhecimento da BNCC, LDB, Lei Brasileira de Inclusão (13.146/2015), DSM-5,
 CID-11 e das principais teorias pedagógicas (Vygotsky, Gardner, DUA/CAST).
 Você cria planos de aula pedagogicamente sólidos, legalmente fundamentados
 e efetivamente inclusivos. Retorne sempre JSON válido sem markdown, sem
-texto fora do JSON. Use APENAS códigos BNCC reais e verificáveis.`
+texto fora do JSON. Use APENAS códigos BNCC reais e verificáveis.
+Se um contexto RAG foi fornecido, use os códigos BNCC e artigos de lei
+exatamente como aparecem no contexto recuperado.`
         },
         { role: "user", content: prompt }
       ],
@@ -333,6 +360,14 @@ texto fora do JSON. Use APENAS códigos BNCC reais e verificáveis.`
     } catch {
       throw new Error("A IA retornou uma resposta inválida. Tente novamente.");
     }
+  });
+
+  // Loop de auto-revisão: valida e corrige o output
+  const resultado = await reviewOutput(gerado, {
+    type: "lesson",
+    serie,
+    disciplina,
+    deficiencia
   });
 
   return resultado;
