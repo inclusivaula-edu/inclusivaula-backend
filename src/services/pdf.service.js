@@ -93,7 +93,7 @@ async function desenharEscola(doc, escola, y) {
   if (partesTel.length) linhas.push(partesTel.join("   |   "));
 
   const h = Math.max(64, 28 + linhas.length * 13 + 10);
-  doc.rect(50, y, doc.page.width - 100, h).fill("#f0f8ff").stroke(CORES.bordaClara);
+  doc.rect(50, y, doc.page.width - 100, h).fillAndStroke("#f0f8ff", CORES.bordaClara);
 
   let logoDrawn = false;
   if (escola.logo_url) {
@@ -194,7 +194,7 @@ export const generateStudentReportPDF = async (reportData, res) => {
   y = await desenharEscola(doc, escola, y);
 
   // Bloco dados do aluno
-  doc.rect(50, y, doc.page.width - 100, 60).fill("#f5f9ff").stroke(CORES.bordaClara);
+  doc.rect(50, y, doc.page.width - 100, 60).fillAndStroke("#f5f9ff", CORES.bordaClara);
   doc.fontSize(11).fillColor(CORES.azul).font("Helvetica-Bold").text("Dados do Aluno", 60, y + 8);
   doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica")
     .text(`Nome: ${aluno?.full_name || rep.aluno?.nome || "—"}`, 60, y + 22);
@@ -212,7 +212,7 @@ export const generateStudentReportPDF = async (reportData, res) => {
     const cw = (doc.page.width - 100) / 4;
     cols.forEach((col, i) => {
       const x = 50 + i * cw;
-      doc.rect(x, y, cw - 4, 44).fill("#fff").stroke(CORES.bordaClara);
+      doc.rect(x, y, cw - 4, 44).fillAndStroke("#fff", CORES.bordaClara);
       doc.fontSize(16).fillColor(CORES.azul).font("Helvetica-Bold").text(String(col.valor), x + 4, y + 6, { width: cw - 12, align: "center" });
       doc.fontSize(8).fillColor(CORES.cinza).font("Helvetica").text(col.label, x + 4, y + 28, { width: cw - 12, align: "center" });
     });
@@ -306,7 +306,7 @@ async function gerarPDFPlanoAEE(doc, aee, student, escola, periodo, titulo) {
   y = await desenharEscola(doc, escola, y);
 
   // Bloco identificação
-  doc.rect(50, y, doc.page.width - 100, 60).fill("#f5f9ff").stroke(CORES.bordaClara);
+  doc.rect(50, y, doc.page.width - 100, 60).fillAndStroke("#f5f9ff", CORES.bordaClara);
   doc.fontSize(11).fillColor(CORES.azul).font("Helvetica-Bold").text("Identificação", 60, y + 8);
   doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica")
     .text(`Aluno: ${nomeAluno}`, 60, y + 22);
@@ -400,7 +400,7 @@ export const generateAvaliacaoPedagogicaPDF = async (docData, res) => {
 
   y = await desenharEscola(doc, escola, y);
 
-  doc.rect(50, y, doc.page.width - 100, 60).fill("#f5f9ff").stroke(CORES.bordaClara);
+  doc.rect(50, y, doc.page.width - 100, 60).fillAndStroke("#f5f9ff", CORES.bordaClara);
   doc.fontSize(11).fillColor(CORES.azul).font("Helvetica-Bold").text("Identificação do Aluno", 60, y + 8);
   doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica")
     .text(`Nome: ${nomeAluno}   |   Série: ${rep.aluno?.serie || student.grade || "—"}   |   Turma: ${rep.aluno?.turma || student.turma || "—"}`, 60, y + 22);
@@ -418,7 +418,7 @@ export const generateAvaliacaoPedagogicaPDF = async (docData, res) => {
 
   if (rep.recomendacao_aee) {
     if (y > doc.page.height - 80) { doc.addPage(); y = 60; }
-    doc.rect(50, y, doc.page.width - 100, 36).fill("#edfff6").stroke(CORES.verde);
+    doc.rect(50, y, doc.page.width - 100, 36).fillAndStroke("#edfff6", CORES.verde);
     doc.fontSize(12).fillColor(CORES.verde).font("Helvetica-Bold")
       .text(`Recomendação: ${rep.recomendacao_aee}`, 60, y + 12, { width: doc.page.width - 120 });
     y += 50;
@@ -444,7 +444,7 @@ export const generateAdequacaoCurricularPDF = async (docData, res) => {
 
   y = await desenharEscola(doc, escola, y);
 
-  doc.rect(50, y, doc.page.width - 100, 60).fill("#f5f9ff").stroke(CORES.bordaClara);
+  doc.rect(50, y, doc.page.width - 100, 60).fillAndStroke("#f5f9ff", CORES.bordaClara);
   doc.fontSize(11).fillColor(CORES.azul).font("Helvetica-Bold").text("Identificação", 60, y + 8);
   doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica")
     .text(`Aluno: ${nomeAluno}   |   Série: ${rep.aluno?.serie || student.grade || "—"}   |   Turma: ${rep.aluno?.turma || student.turma || "—"}`, 60, y + 22);
@@ -496,7 +496,7 @@ export const generateTermoCienciaPDF = async (docData, res) => {
   y = await desenharEscola(doc, escola, y);
 
   // Bloco identificação
-  doc.rect(50, y, doc.page.width - 100, 72).fill("#f5f9ff").stroke(CORES.bordaClara);
+  doc.rect(50, y, doc.page.width - 100, 72).fillAndStroke("#f5f9ff", CORES.bordaClara);
   doc.fontSize(11).fillColor(CORES.azul).font("Helvetica-Bold").text("Dados do Aluno", 60, y + 8);
   doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica")
     .text(`Nome: ${nomeAluno}`, 60, y + 22);
@@ -560,7 +560,7 @@ export const generateFrequenciaAEEPDF = async (docData, res) => {
   y = await desenharEscola(doc, escola, y);
 
   // Identificação
-  doc.rect(50, y, doc.page.width - 100, 60).fill("#f5f9ff").stroke(CORES.bordaClara);
+  doc.rect(50, y, doc.page.width - 100, 60).fillAndStroke("#f5f9ff", CORES.bordaClara);
   doc.fontSize(11).fillColor(CORES.azul).font("Helvetica-Bold").text("Identificação do Aluno", 60, y + 8);
   doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica")
     .text(`Nome: ${nomeAluno}   |   Série: ${student?.grade || "—"}   |   NEE: ${student?.disability_type || "—"}`, 60, y + 22);
@@ -608,7 +608,7 @@ export const generateFrequenciaAEEPDF = async (docData, res) => {
     if (y + linhaH > doc.page.height - 60) { doc.addPage(); y = 60; }
 
     const bg = idx % 2 === 0 ? "#fff" : CORES.cinzaClaro;
-    doc.rect(50, y, doc.page.width - 100, linhaH).fill(bg).stroke(CORES.bordaClara);
+    doc.rect(50, y, doc.page.width - 100, linhaH).fillAndStroke(bg, CORES.bordaClara);
 
     const values = [dateStr, duracao, grupo, presenca, notas];
     values.forEach((v, i) => {
@@ -622,7 +622,7 @@ export const generateFrequenciaAEEPDF = async (docData, res) => {
   // Rodapé com nota FUNDEB
   y += 12;
   if (y > doc.page.height - 80) { doc.addPage(); y = 60; }
-  doc.rect(50, y, doc.page.width - 100, 36).fill("#faeeda").stroke(CORES.amarelo);
+  doc.rect(50, y, doc.page.width - 100, 36).fillAndStroke("#faeeda", CORES.amarelo);
   doc.fontSize(8).fillColor(CORES.amarelo).font("Helvetica-Bold")
     .text("FUNDEB — Esta ficha comprova a dupla matrícula exigida para o cômputo diferenciado de alunos com deficiência (Decreto 7.611/2011 Art. 9). Manter arquivada na escola.", 60, y + 8, { width: doc.page.width - 120 });
 
@@ -646,7 +646,7 @@ export const generatePEIPDF = async (docData, res) => {
 
   y = await desenharEscola(doc, escola, y);
 
-  doc.rect(50, y, doc.page.width - 100, 60).fill("#f5f9ff").stroke(CORES.bordaClara);
+  doc.rect(50, y, doc.page.width - 100, 60).fillAndStroke("#f5f9ff", CORES.bordaClara);
   doc.fontSize(11).fillColor(CORES.azul).font("Helvetica-Bold").text("Identificação", 60, y + 8);
   doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica")
     .text(`Aluno: ${nomeAluno}   |   Série: ${pei.identificacao?.serie || student.grade || "—"}`, 60, y + 22);
