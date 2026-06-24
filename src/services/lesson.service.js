@@ -32,7 +32,8 @@ export const createLessonJob = async (input) => {
     input,
     result: null,
     user_id: userId,
-    teacher_id: userId
+    teacher_id: userId,
+    school_id: schoolId
   }]);
 
   if (insertError) {
