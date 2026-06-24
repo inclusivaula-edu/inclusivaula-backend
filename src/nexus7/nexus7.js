@@ -333,7 +333,7 @@ explicações fora do JSON. Seja rico e detalhado em cada campo.
 
   const gerado = await chamadaComRetry(async () => {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -349,7 +349,7 @@ exatamente como aparecem no contexto recuperado.`
         { role: "user", content: prompt }
       ],
       temperature: 0.4,
-      max_tokens: 4096
+      max_tokens: 8192
     });
 
     const content = response.choices[0].message.content.trim();

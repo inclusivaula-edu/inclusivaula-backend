@@ -79,10 +79,10 @@ export const createLessonJob = async (input) => {
         }
       }
     } catch (error) {
-      console.error("ERRO NO JOB:", error.message);
+      console.error("ERRO NO JOB:", error.message, error.stack);
       await supabase
         .from("lessons")
-        .update({ status: "error", result: { error: "Falha ao gerar aula" } })
+        .update({ status: "error", result: { error: "Falha ao gerar aula", debug: error.message } })
         .eq("id", id);
     } finally {
       processingLock.delete(userId);
