@@ -1,5 +1,11 @@
 import { generateStudentReport } from "../services/report.service.js";
-import { generateStudentReportPDF, generatePAEEPDF } from "../services/pdf.service.js";
+import {
+  generateStudentReportPDF,
+  generatePAEEPDF,
+  generateAvaliacaoPedagogicaPDF,
+  generateAdequacaoCurricularPDF,
+  generateTermoCienciaPDF
+} from "../services/pdf.service.js";
 import { getPlano, getUsoMensal } from "../services/usage.service.js";
 import { internalError } from "../utils/sanitize.js";
 
@@ -71,9 +77,21 @@ export const generateReportPDFController = async (req, res) => {
 
     const rep = report.content?.report || report.content;
 
-    // PAEE usa PDF especializado com estrutura do plano AEE
+    // Tipos com PDF especializado
     if (report.report_type === "paee") {
       await generatePAEEPDF({ result: rep, student, escola, periodo: report.period }, res);
+      return;
+    }
+    if (report.report_type === "avaliacao_pedagogica") {
+      await generateAvaliacaoPedagogicaPDF({ result: rep, student, escola, periodo: report.period }, res);
+      return;
+    }
+    if (report.report_type === "adequacao_curricular") {
+      await generateAdequacaoCurricularPDF({ result: rep, student, escola, periodo: report.period }, res);
+      return;
+    }
+    if (report.report_type === "termo_ciencia") {
+      await generateTermoCienciaPDF({ result: rep, student, escola, periodo: report.period }, res);
       return;
     }
 

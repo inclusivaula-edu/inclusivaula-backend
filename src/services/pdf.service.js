@@ -385,6 +385,251 @@ export const generatePAEEPDF = async (docData, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────
+// GERAR PDF DE AVALIAÇÃO PEDAGÓGICA (Art. 9 Res. CNE/CEB 4/2009)
+// ─────────────────────────────────────────────────────────────────
+export const generateAvaliacaoPedagogicaPDF = async (docData, res) => {
+  const rep = docData.result || {};
+  const student = docData.student || {};
+  const escola = docData.escola;
+  const nomeArquivo = `avaliacao-pedagogica-${(student.full_name || "aluno").replace(/ /g, "-")}.pdf`;
+  const doc = criarDoc(res, nomeArquivo);
+
+  const nomeAluno = rep.aluno?.nome || student.full_name || "—";
+  let y = desenharCabecalho(doc, rep.titulo || "Avaliação Pedagógica — Elegibilidade ao AEE",
+    `Aluno: ${nomeAluno}  |  Período: ${rep.periodo || docData.periodo || "—"}`);
+
+  y = await desenharEscola(doc, escola, y);
+
+  doc.rect(50, y, doc.page.width - 100, 60).fill("#f5f9ff").stroke(CORES.bordaClara);
+  doc.fontSize(11).fillColor(CORES.azul).font("Helvetica-Bold").text("Identificação do Aluno", 60, y + 8);
+  doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica")
+    .text(`Nome: ${nomeAluno}   |   Série: ${rep.aluno?.serie || student.grade || "—"}   |   Turma: ${rep.aluno?.turma || student.turma || "—"}`, 60, y + 22);
+  doc.text(`NEE: ${rep.aluno?.nee || student.disability_type || "—"}`, 60, y + 36);
+  y += 74;
+
+  if (rep.historico_escolar)       y = desenharSecao(doc, "Histórico Escolar", rep.historico_escolar, CORES.azul, y);
+  if (rep.avaliacao_cognitiva)     y = desenharSecao(doc, "Avaliação Cognitiva", rep.avaliacao_cognitiva, CORES.roxo, y);
+  if (rep.avaliacao_comunicacao)   y = desenharSecao(doc, "Avaliação da Comunicação", rep.avaliacao_comunicacao, CORES.verde, y);
+  if (rep.avaliacao_motora)        y = desenharSecao(doc, "Avaliação Motora", rep.avaliacao_motora, CORES.azul, y);
+  if (rep.avaliacao_comportamental) y = desenharSecao(doc, "Avaliação Comportamental e Social", rep.avaliacao_comportamental, CORES.roxo, y);
+  if (rep.barreiras_identificadas?.length) y = desenharLista(doc, "Barreiras Identificadas", rep.barreiras_identificadas, CORES.amarelo, y);
+  if (rep.recursos_necessarios?.length)    y = desenharLista(doc, "Recursos Necessários", rep.recursos_necessarios, CORES.verde, y);
+  if (rep.conclusao)               y = desenharSecao(doc, "Conclusão", rep.conclusao, CORES.azul, y);
+
+  if (rep.recomendacao_aee) {
+    if (y > doc.page.height - 80) { doc.addPage(); y = 60; }
+    doc.rect(50, y, doc.page.width - 100, 36).fill("#edfff6").stroke(CORES.verde);
+    doc.fontSize(12).fillColor(CORES.verde).font("Helvetica-Bold")
+      .text(`Recomendação: ${rep.recomendacao_aee}`, 60, y + 12, { width: doc.page.width - 120 });
+    y += 50;
+  }
+
+  if (rep.base_legal) desenharSecao(doc, "Base Legal", rep.base_legal, CORES.cinza, y);
+  doc.end();
+};
+
+// ─────────────────────────────────────────────────────────────────
+// GERAR PDF DE ADEQUAÇÃO CURRICULAR (LDB Art. 59)
+// ─────────────────────────────────────────────────────────────────
+export const generateAdequacaoCurricularPDF = async (docData, res) => {
+  const rep = docData.result || {};
+  const student = docData.student || {};
+  const escola = docData.escola;
+  const nomeArquivo = `adequacao-curricular-${(student.full_name || "aluno").replace(/ /g, "-")}.pdf`;
+  const doc = criarDoc(res, nomeArquivo);
+
+  const nomeAluno = rep.aluno?.nome || student.full_name || "—";
+  let y = desenharCabecalho(doc, rep.titulo || "Adequação Curricular",
+    `Aluno: ${nomeAluno}  |  Período: ${rep.periodo || docData.periodo || "—"}`);
+
+  y = await desenharEscola(doc, escola, y);
+
+  doc.rect(50, y, doc.page.width - 100, 60).fill("#f5f9ff").stroke(CORES.bordaClara);
+  doc.fontSize(11).fillColor(CORES.azul).font("Helvetica-Bold").text("Identificação", 60, y + 8);
+  doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica")
+    .text(`Aluno: ${nomeAluno}   |   Série: ${rep.aluno?.serie || student.grade || "—"}   |   Turma: ${rep.aluno?.turma || student.turma || "—"}`, 60, y + 22);
+  doc.text(`NEE: ${rep.aluno?.nee || student.disability_type || "—"}`, 60, y + 36);
+  y += 74;
+
+  if (rep.principios_orientadores) y = desenharSecao(doc, "Princípios Orientadores", rep.principios_orientadores, CORES.azul, y);
+
+  if (rep.componentes?.length) {
+    for (const comp of rep.componentes) {
+      if (y > doc.page.height - 140) { doc.addPage(); y = 60; }
+      // Cabeçalho do componente
+      doc.rect(50, y, doc.page.width - 100, 24).fill(CORES.azul);
+      doc.fontSize(11).fillColor("#fff").font("Helvetica-Bold")
+        .text(comp.componente || "Componente Curricular", 60, y + 7, { width: doc.page.width - 120 });
+      y += 30;
+
+      if (comp.adaptacoes_conteudo)
+        y = desenharSecao(doc, "Adaptações de Conteúdo", comp.adaptacoes_conteudo, CORES.roxo, y);
+      if (comp.adaptacoes_metodologicas?.length)
+        y = desenharLista(doc, "Adaptações Metodológicas", comp.adaptacoes_metodologicas, CORES.verde, y);
+      if (comp.adaptacoes_avaliacao)
+        y = desenharSecao(doc, "Adaptações de Avaliação", comp.adaptacoes_avaliacao, CORES.amarelo, y);
+      if (comp.recursos?.length)
+        y = desenharLista(doc, "Recursos", comp.recursos, CORES.azul, y);
+      y += 8;
+    }
+  }
+
+  if (rep.observacoes_gerais) y = desenharSecao(doc, "Observações Gerais", rep.observacoes_gerais, CORES.cinza, y);
+  if (rep.base_legal)         desenharSecao(doc, "Base Legal", rep.base_legal, CORES.cinza, y);
+  doc.end();
+};
+
+// ─────────────────────────────────────────────────────────────────
+// GERAR PDF DE TERMO DE CIÊNCIA DOS PAIS (Decreto 7.611/2011)
+// ─────────────────────────────────────────────────────────────────
+export const generateTermoCienciaPDF = async (docData, res) => {
+  const rep = docData.result || {};
+  const student = docData.student || {};
+  const escola = docData.escola;
+  const nomeArquivo = `termo-ciencia-${(student.full_name || "aluno").replace(/ /g, "-")}.pdf`;
+  const doc = criarDoc(res, nomeArquivo);
+
+  const nomeAluno = rep.aluno?.nome || student.full_name || "—";
+  let y = desenharCabecalho(doc, rep.titulo || "Termo de Ciência dos Pais/Responsáveis — AEE",
+    `Aluno: ${nomeAluno}  |  Período: ${rep.periodo || docData.periodo || "—"}`);
+
+  y = await desenharEscola(doc, escola, y);
+
+  // Bloco identificação
+  doc.rect(50, y, doc.page.width - 100, 72).fill("#f5f9ff").stroke(CORES.bordaClara);
+  doc.fontSize(11).fillColor(CORES.azul).font("Helvetica-Bold").text("Dados do Aluno", 60, y + 8);
+  doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica")
+    .text(`Nome: ${nomeAluno}`, 60, y + 22);
+  doc.text(`Série: ${rep.aluno?.serie || student.grade || "—"}   |   Turma: ${rep.aluno?.turma || student.turma || "—"}   |   NEE: ${rep.aluno?.nee || student.disability_type || "—"}`, 60, y + 36);
+  doc.text(`Responsável: ${rep.aluno?.responsavel || student.guardian_name || "—"}`, 60, y + 52);
+  y += 86;
+
+  if (rep.descricao_atendimento)
+    y = desenharSecao(doc, "Sobre o Atendimento Educacional Especializado", rep.descricao_atendimento, CORES.azul, y);
+
+  const infoAtendimento = [
+    rep.frequencia_prevista ? `Frequência: ${rep.frequencia_prevista}` : "",
+    rep.local_atendimento   ? `Local: ${rep.local_atendimento}`         : "",
+    rep.periodo             ? `Período: ${rep.periodo}`                 : ""
+  ].filter(Boolean).join("  |  ");
+  if (infoAtendimento) y = desenharSecao(doc, "Informações do Atendimento", infoAtendimento, CORES.verde, y);
+
+  if (rep.responsabilidades_escola?.length)
+    y = desenharLista(doc, "Responsabilidades da Escola", rep.responsabilidades_escola, CORES.azul, y);
+  if (rep.responsabilidades_familia?.length)
+    y = desenharLista(doc, "Responsabilidades da Família", rep.responsabilidades_familia, CORES.verde, y);
+
+  if (rep.base_legal)
+    y = desenharSecao(doc, "Base Legal", rep.base_legal, CORES.cinza, y);
+
+  // Espaço para assinatura
+  y = Math.max(y, doc.page.height - 180);
+  if (y > doc.page.height - 160) { doc.addPage(); y = 60; }
+
+  doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica")
+    .text("Declaro que estou ciente sobre o Atendimento Educacional Especializado conforme descrito acima.", 50, y, { width: doc.page.width - 100, align: "justify" });
+  y += 30;
+
+  const dataCidade = `${(escola?.city || "_____________")}, ___ de ________________ de _______`;
+  doc.text(dataCidade, 50, y, { align: "right", width: doc.page.width - 100 });
+  y += 40;
+
+  const colW = (doc.page.width - 100) / 2 - 10;
+  doc.moveTo(50, y).lineTo(50 + colW, y).strokeColor(CORES.bordaClara).lineWidth(0.5).stroke();
+  doc.moveTo(doc.page.width - 50 - colW, y).lineTo(doc.page.width - 50, y).strokeColor(CORES.bordaClara).lineWidth(0.5).stroke();
+  y += 8;
+  doc.fontSize(9).fillColor(CORES.cinza).font("Helvetica")
+    .text("Assinatura do Responsável pela Escola", 50, y, { width: colW, align: "center" });
+  doc.text(`Assinatura dos Pais/Responsáveis\n${rep.aluno?.responsavel || ""}`, doc.page.width - 50 - colW, y, { width: colW, align: "center" });
+
+  doc.end();
+};
+
+// ─────────────────────────────────────────────────────────────────
+// GERAR PDF DE FREQUÊNCIA AEE (Ficha por aluno — FUNDEB)
+// ─────────────────────────────────────────────────────────────────
+export const generateFrequenciaAEEPDF = async (docData, res) => {
+  const { sessions, student, escola, periodo } = docData;
+  const nomeArquivo = `frequencia-aee-${(student?.full_name || "aluno").replace(/ /g, "-")}.pdf`;
+  const doc = criarDoc(res, nomeArquivo);
+
+  const nomeAluno = student?.full_name || "—";
+  let y = desenharCabecalho(doc, "Ficha de Frequência — AEE",
+    `Aluno: ${nomeAluno}  |  Período: ${periodo || "—"}`);
+
+  y = await desenharEscola(doc, escola, y);
+
+  // Identificação
+  doc.rect(50, y, doc.page.width - 100, 60).fill("#f5f9ff").stroke(CORES.bordaClara);
+  doc.fontSize(11).fillColor(CORES.azul).font("Helvetica-Bold").text("Identificação do Aluno", 60, y + 8);
+  doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica")
+    .text(`Nome: ${nomeAluno}   |   Série: ${student?.grade || "—"}   |   NEE: ${student?.disability_type || "—"}`, 60, y + 22);
+
+  const total = sessions.length;
+  const presencas = sessions.filter(s => s.presente).length;
+  const pct = total > 0 ? Math.round((presencas / total) * 100) : 0;
+  doc.text(`Total de sessões: ${total}   |   Presenças: ${presencas}   |   Faltas: ${total - presencas}   |   Frequência: ${pct}%`, 60, y + 36);
+  y += 74;
+
+  if (total === 0) {
+    y = desenharSecao(doc, "Registros", "Nenhuma sessão de AEE registrada para este aluno no período selecionado.", CORES.cinza, y);
+    doc.end();
+    return;
+  }
+
+  // Cabeçalho da tabela
+  if (y > doc.page.height - 100) { doc.addPage(); y = 60; }
+  const cW = [100, 70, 90, 80, doc.page.width - 100 - 340 - 20];
+  const headers = ["Data", "Duração", "Agrupamento", "Presença", "Objetivos / Evolução"];
+  const colX = [50];
+  for (let i = 0; i < cW.length - 1; i++) colX.push(colX[i] + cW[i]);
+
+  doc.rect(50, y, doc.page.width - 100, 22).fill(CORES.azul);
+  headers.forEach((h, i) => {
+    doc.fontSize(9).fillColor("#fff").font("Helvetica-Bold")
+      .text(h, colX[i] + 4, y + 6, { width: cW[i] - 8 });
+  });
+  y += 22;
+
+  // Linhas da tabela
+  sessions.forEach((s, idx) => {
+    const dateStr = s.data_sessao
+      ? new Date(s.data_sessao + "T00:00:00").toLocaleDateString("pt-BR")
+      : "—";
+    const duracao  = s.duracao_minutos ? `${s.duracao_minutos} min` : "50 min";
+    const grupo    = s.tipo_agrupamento === "individual" ? "Individual" : (s.tipo_agrupamento || "Individual");
+    const presenca = s.presente ? "Presente" : "Falta";
+    const notasArr = [s.objetivos, s.evolucao].filter(Boolean);
+    const notas    = notasArr.length > 0 ? notasArr.join(" | ").slice(0, 120) : "—";
+
+    doc.fontSize(9);
+    const linhaH = Math.max(20, doc.heightOfString(notas, { width: cW[4] - 8 }) + 8);
+
+    if (y + linhaH > doc.page.height - 60) { doc.addPage(); y = 60; }
+
+    const bg = idx % 2 === 0 ? "#fff" : CORES.cinzaClaro;
+    doc.rect(50, y, doc.page.width - 100, linhaH).fill(bg).stroke(CORES.bordaClara);
+
+    const values = [dateStr, duracao, grupo, presenca, notas];
+    values.forEach((v, i) => {
+      const cor = i === 3 ? (s.presente ? CORES.verde : CORES.vermelho) : "#2c2c2a";
+      doc.fontSize(9).fillColor(cor).font(i === 3 ? "Helvetica-Bold" : "Helvetica")
+        .text(v, colX[i] + 4, y + 4, { width: cW[i] - 8 });
+    });
+    y += linhaH;
+  });
+
+  // Rodapé com nota FUNDEB
+  y += 12;
+  if (y > doc.page.height - 80) { doc.addPage(); y = 60; }
+  doc.rect(50, y, doc.page.width - 100, 36).fill("#faeeda").stroke(CORES.amarelo);
+  doc.fontSize(8).fillColor(CORES.amarelo).font("Helvetica-Bold")
+    .text("FUNDEB — Esta ficha comprova a dupla matrícula exigida para o cômputo diferenciado de alunos com deficiência (Decreto 7.611/2011 Art. 9). Manter arquivada na escola.", 60, y + 8, { width: doc.page.width - 120 });
+
+  doc.end();
+};
+
+// ─────────────────────────────────────────────────────────────────
 // GERAR PDF DE PEI
 // ─────────────────────────────────────────────────────────────────
 export const generatePEIPDF = async (docData, res) => {
