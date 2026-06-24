@@ -263,15 +263,18 @@ export const generateStudentReport = async (studentId, tipo = "semestral", perio
     if (!limite.permitido) throw new Error(limite.mensagem);
   }
 
-  // Busca aulas do aluno (input é text, não jsonb — filtra por ilike)
+  // Busca aulas da escola e filtra em JS pelo student_id no input
   const { data: lessons } = await supabase
     .from("lessons").select("id, result, input, created_at, aprovado")
     .eq("status", "completed")
     .eq("school_id", student.school_id)
-    .ilike("input", `%${studentId}%`)
-    .order("created_at", { ascending: false }).limit(20);
+    .order("created_at", { ascending: false }).limit(100);
 
-  const aulasDoAluno = lessons || [];
+  const aulasDoAluno = (lessons || []).filter(l => {
+    if (!l.input) return false;
+    const inp = typeof l.input === "string" ? (() => { try { return JSON.parse(l.input); } catch { return {}; } })() : l.input;
+    return inp.student_id === studentId;
+  });
 
   // Busca avaliações
   const { data: evaluations } = await supabase
