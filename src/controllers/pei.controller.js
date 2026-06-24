@@ -139,13 +139,22 @@ export const getPEIPDF = async (req, res) => {
   try {
     const { data, error } = await supabase.from("pei_documents").select("*").eq("id", req.params.id).single();
     if (error || !data) return res.status(404).json({ success: false, error: "PEI não encontrado" });
-    if (data.user_id !== req.user.id && data.school_id !== req.schoolId)
+
+    const isAdmin = ["coordenador_municipal","coordenador_estadual","secretario_municipal",
+      "secretario_estadual","diretor","coordenador"].includes(req.cargo);
+    if (!isAdmin && data.user_id !== req.user.id && data.school_id !== req.schoolId)
       return res.status(403).json({ success: false, error: "Acesso negado" });
+
+    if (data.status !== "completed" || !data.result || data.result.error) {
+      return res.status(422).json({ success: false, error: `PEI ainda não está pronto (status: ${data.status || "desconhecido"})` });
+    }
+
     const { data: student } = await supabase.from("students").select("*").eq("id", data.student_id).single();
     const { data: escola } = student?.school_id
       ? await supabase.from("schools").select("id, name, city, state, address, phone, inep_code, cnpj, logo_url").eq("id", student.school_id).single()
       : { data: null };
-    await generatePEIPDF({ result: data.result, student, escola, periodo: data.periodo }, res);
+
+    await generatePEIPDF({ result: data.result, student: student || {}, escola, periodo: data.periodo }, res);
   } catch (error) {
     console.error("getPEIPDF:", error.message);
     if (!res.headersSent) return res.status(500).json({ success: false, error: internalError(error) });
@@ -170,13 +179,22 @@ export const getAEEPDF = async (req, res) => {
   try {
     const { data, error } = await supabase.from("aee_documents").select("*").eq("id", req.params.id).single();
     if (error || !data) return res.status(404).json({ success: false, error: "AEE não encontrado" });
-    if (data.user_id !== req.user.id && data.school_id !== req.schoolId)
+
+    const isAdmin = ["coordenador_municipal","coordenador_estadual","secretario_municipal",
+      "secretario_estadual","diretor","coordenador"].includes(req.cargo);
+    if (!isAdmin && data.user_id !== req.user.id && data.school_id !== req.schoolId)
       return res.status(403).json({ success: false, error: "Acesso negado" });
+
+    if (data.status !== "completed" || !data.result || data.result.error) {
+      return res.status(422).json({ success: false, error: `Plano AEE ainda não está pronto (status: ${data.status || "desconhecido"})` });
+    }
+
     const { data: student } = await supabase.from("students").select("*").eq("id", data.student_id).single();
     const { data: escola } = student?.school_id
       ? await supabase.from("schools").select("id, name, city, state, address, phone, inep_code, cnpj, logo_url").eq("id", student.school_id).single()
       : { data: null };
-    await generateAEEPDF({ result: data.result, student, escola, periodo: data.periodo }, res);
+
+    await generateAEEPDF({ result: data.result, student: student || {}, escola, periodo: data.periodo }, res);
   } catch (error) {
     console.error("getAEEPDF:", error.message);
     if (!res.headersSent) return res.status(500).json({ success: false, error: internalError(error) });
