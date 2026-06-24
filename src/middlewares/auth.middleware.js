@@ -31,7 +31,7 @@ export const authMiddleware = async (req, res, next) => {
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("id, role, school_id, full_name, email")
+      .select("id, role, cargo, school_id, full_name, email")
       .eq("id", userData.user.id)
       .single();
 
@@ -46,6 +46,7 @@ export const authMiddleware = async (req, res, next) => {
     req.profile = profile;
     req.schoolId = profile.school_id;
     req.role = profile.role;
+    req.cargo = profile.cargo;
 
     next();
   } catch (error) {

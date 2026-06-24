@@ -1,7 +1,9 @@
 import { generateStudentReport } from "../services/report.service.js";
-import { generateStudentReportPDF } from "../services/pdf.service.js";
+import { generateStudentReportPDF, generatePAEEPDF } from "../services/pdf.service.js";
 import { getPlano, getUsoMensal } from "../services/usage.service.js";
 import { internalError } from "../utils/sanitize.js";
+
+const CARGOS_ADMIN = ["coordenador_municipal","coordenador_estadual","secretario_municipal","secretario_estadual","diretor","coordenador"];
 
 // Gera relatório com IA por tipo — semestral, familia, aee, pei ou paee
 export const generateReportController = async (req, res) => {
@@ -49,9 +51,13 @@ export const getReportsByStudent = async (req, res) => {
 export const generateReportPDFController = async (req, res) => {
   try {
     const { supabase } = await import("../config/supabase.js");
-    const { data: report, error } = await supabase
-      .from("reports").select("*").eq("id", req.params.reportId).eq("school_id", req.schoolId).single();
 
+    // Admins acessam relatórios de qualquer escola; professores só da própria escola
+    const isAdmin = CARGOS_ADMIN.includes(req.cargo);
+    let query = supabase.from("reports").select("*").eq("id", req.params.reportId);
+    if (!isAdmin && req.schoolId) query = query.eq("school_id", req.schoolId);
+
+    const { data: report, error } = await query.single();
     if (error || !report) {
       return res.status(404).json({ success: false, error: "Relatório não encontrado" });
     }
@@ -63,14 +69,20 @@ export const generateReportPDFController = async (req, res) => {
       ? await supabase.from("schools").select("id, name, city, state, address, phone, inep_code, cnpj, logo_url").eq("id", student.school_id).single()
       : { data: null };
 
-    const reportData = {
-      report: report.content?.report || report.content,
+    const rep = report.content?.report || report.content;
+
+    // PAEE usa PDF especializado com estrutura do plano AEE
+    if (report.report_type === "paee") {
+      await generatePAEEPDF({ result: rep, student, escola, periodo: report.period }, res);
+      return;
+    }
+
+    await generateStudentReportPDF({
+      report: rep,
       metrics: report.content?.metrics || {},
       student,
       escola
-    };
-
-    await generateStudentReportPDF(reportData, res);
+    }, res);
   } catch (error) {
     console.error("❌ generateReportPDF:", error.message);
     if (!res.headersSent) {
