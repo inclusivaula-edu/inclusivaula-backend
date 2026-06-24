@@ -4,7 +4,7 @@ import { dirname, join } from "path";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
 
@@ -59,7 +59,7 @@ const limiter = rateLimit({
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.headers.authorization || req.ip,
+  keyGenerator: (req) => req.headers.authorization || ipKeyGenerator(req),
   message: {
     success: false,
     error: "Muitas requisições. Tente novamente em alguns minutos."
@@ -72,7 +72,7 @@ const aiLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.headers.authorization || req.ip,
+  keyGenerator: (req) => req.headers.authorization || ipKeyGenerator(req),
   message: {
     success: false,
     error: "Limite de geração por IA atingido. Aguarde alguns minutos."
