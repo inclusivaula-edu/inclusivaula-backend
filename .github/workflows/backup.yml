@@ -1,0 +1,36 @@
+name: Backup diário do banco
+
+on:
+  schedule:
+    # Todo dia às 03:00 BRT (06:00 UTC)
+    - cron: "0 6 * * *"
+  workflow_dispatch: # permite rodar manualmente
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar pg_dump
+        run: sudo apt-get install -y postgresql-client
+
+      - name: Gerar dump
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          FILENAME="backup-$(date +%Y-%m-%d).sql.gz"
+          pg_dump \
+            --host=${{ secrets.SUPABASE_DB_HOST }} \
+            --port=5432 \
+            --username=postgres \
+            --dbname=postgres \
+            --no-password \
+            --schema=public \
+            | gzip > "$FILENAME"
+          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
+
+      - name: Salvar como artifact (90 dias)
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_number }}
+          path: ${{ env.FILENAME }}
+          retention-days: 90
