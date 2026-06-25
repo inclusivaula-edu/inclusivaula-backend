@@ -1,3 +1,6 @@
+// Sentry DEVE ser o primeiro import — captura erros desde o boot
+import "./instrument.js";
+
 import { config } from "dotenv";
 config();
 
@@ -5,13 +8,16 @@ config();
 import { webcrypto } from "crypto";
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
-// ── Crash handlers — sem isso o processo morre sem deixar rastro ──
+// ── Crash handlers — reporta ao Sentry antes de morrer ──
+import * as Sentry from "@sentry/node";
 process.on("unhandledRejection", (reason) => {
   console.error("❌ Unhandled Rejection:", reason);
+  Sentry.captureException(reason);
   process.exit(1);
 });
 process.on("uncaughtException", (err) => {
   console.error("❌ Uncaught Exception:", err);
+  Sentry.captureException(err);
   process.exit(1);
 });
 

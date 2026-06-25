@@ -12,6 +12,7 @@ import { authMiddleware } from "./middlewares/auth.middleware.js";
 import { secureMiddleware } from "./middlewares/secure.middleware.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import { logger } from "./config/logger.js";
+import * as Sentry from "@sentry/node";
 
 import lessonRoutes from "./routes/lesson.routes.js";
 import studentRoutes from "./routes/student.routes.js";
@@ -164,6 +165,9 @@ app.use((req, res) => {
     error: "Rota não encontrada"
   });
 });
+
+// Sentry captura erros antes do errorHandler customizado
+Sentry.setupExpressErrorHandler(app);
 
 app.use(errorHandler);
 
