@@ -28,8 +28,8 @@ if (missing.length) {
   process.exit(1);
 }
 
-if (!process.env.ASAAS_API_KEY) {
-  console.warn("⚠️  ASAAS_API_KEY não definida — módulo de pagamento desativado");
+if (!process.env.MP_ACCESS_TOKEN) {
+  console.warn("⚠️  MP_ACCESS_TOKEN não definida — módulo de pagamento desativado");
 }
 
 const { default: app } = await import("./app.js");

@@ -7,7 +7,7 @@ import {
 } from "../services/billing.service.js";
 import { supabase } from "../config/supabase.js";
 import { internalError } from "../utils/sanitize.js";
-import { timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 export const getPlan = async (req, res) => {
   try {
@@ -73,29 +73,48 @@ export const cancelPlan = async (req, res) => {
   }
 };
 
-// Endpoint sem authMiddleware — validado por token do Asaas
+// Validação de webhook do Mercado Pago via HMAC-SHA256
+function validateMpSignature(req) {
+  const secret = process.env.MP_WEBHOOK_SECRET;
+  if (!secret) return false;
+
+  const xSignature = req.headers["x-signature"] || "";
+  const xRequestId = req.headers["x-request-id"] || "";
+  const { id: dataId } = req.query;
+
+  // Formato: ts=<timestamp>,v1=<hmac>
+  const parts = Object.fromEntries(
+    xSignature.split(",").map(p => p.split("="))
+  );
+  const ts = parts["ts"];
+  const v1 = parts["v1"];
+  if (!ts || !v1) return false;
+
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+  const expected = createHmac("sha256", secret).update(manifest).digest("hex");
+
+  try {
+    return timingSafeEqual(Buffer.from(v1), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
+// Endpoint sem authMiddleware — validado por assinatura MP
 export const handleWebhook = async (req, res) => {
   try {
-    const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
-    const receivedToken = req.headers["asaas-access-token"] || req.headers["access-token"];
-
-    if (!webhookToken || !receivedToken) {
-      return res.status(401).end();
-    }
-    try {
-      const a = Buffer.from(receivedToken);
-      const b = Buffer.from(webhookToken);
-      if (a.length !== b.length || !timingSafeEqual(a, b)) {
-        return res.status(401).end();
-      }
-    } catch {
+    // Sempre responder 200 rapidamente para o MP não retentar
+    if (!validateMpSignature(req)) {
       return res.status(401).end();
     }
 
-    const { event, payment, subscription } = req.body;
-    if (!event) return res.status(400).end();
+    const { type, action, data } = req.body;
+    const resourceId = data?.id || req.query.id;
 
-    await processWebhook(event, { payment, subscription });
+    if (!type || !resourceId) return res.status(200).end();
+
+    // type: "payment" | "preapproval"
+    await processWebhook(type, resourceId);
     return res.status(200).end();
   } catch (error) {
     console.error("handleWebhook:", error.message);

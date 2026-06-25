@@ -1,8 +1,5 @@
+import { MercadoPagoConfig, PreApproval, PreApprovalPlan, Payment } from "mercadopago";
 import { supabase } from "../config/supabase.js";
-
-const ASAAS_BASE = process.env.ASAAS_SANDBOX === "true"
-  ? "https://sandbox.asaas.com/api/v3"
-  : "https://api.asaas.com/v3";
 
 export const PLANS = {
   free: {
@@ -28,31 +25,40 @@ export const PLANS = {
   }
 };
 
-async function asaasRequest(method, path, body) {
-  const apiKey = process.env.ASAAS_API_KEY;
-  if (!apiKey) throw new Error("Módulo de pagamento não configurado");
-
-  const res = await fetch(`${ASAAS_BASE}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      "access_token": apiKey
-    },
-    ...(body ? { body: JSON.stringify(body) } : {})
-  });
-
-  const data = await res.json();
-  if (!res.ok) {
-    const msg = data?.errors?.[0]?.description || data?.message || "Erro no gateway de pagamento";
-    throw new Error(msg);
-  }
-  return data;
+function getMpClient() {
+  const token = process.env.MP_ACCESS_TOKEN;
+  if (!token) throw new Error("Módulo de pagamento não configurado");
+  return new MercadoPagoConfig({ accessToken: token });
 }
 
-function nextDueDate() {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split("T")[0];
+// Cache de IDs de planos MP para evitar criar duplicatas
+const planCache = {};
+
+async function getOrCreateMpPlan(planKey) {
+  if (planCache[planKey]) return planCache[planKey];
+
+  const config = getMpClient();
+  const planConfig = PLANS[planKey];
+  const planApi = new PreApprovalPlan(config);
+
+  const result = await planApi.create({
+    body: {
+      reason: planConfig.description,
+      auto_recurring: {
+        frequency: 1,
+        frequency_type: "months",
+        transaction_amount: planConfig.value,
+        currency_id: "BRL"
+      },
+      payment_methods_allowed: {
+        payment_types: [{ id: "credit_card" }, { id: "debit_card" }]
+      },
+      back_url: `${process.env.FRONTEND_URL || "https://www.inclusivaula.com.br"}/dashboard`
+    }
+  });
+
+  planCache[planKey] = result.id;
+  return result.id;
 }
 
 export async function getCurrentPlan(schoolId) {
@@ -75,60 +81,50 @@ export async function createCheckout({ schoolId, plan, school, adminUser }) {
   const planConfig = PLANS[plan];
   if (!planConfig || plan === "free") throw new Error("Plano inválido para contratação");
 
+  const config = getMpClient();
+  const preApprovalApi = new PreApproval(config);
+  const frontendUrl = process.env.FRONTEND_URL || "https://www.inclusivaula.com.br";
+
+  // Cancela assinatura anterior se existir
   const { data: existingSub } = await supabase
     .from("subscriptions")
-    .select("asaas_customer_id, asaas_subscription_id")
+    .select("mp_subscription_id")
     .eq("school_id", schoolId)
     .single();
 
-  // Cria ou reutiliza cliente no Asaas
-  let customerId = existingSub?.asaas_customer_id;
-  if (!customerId) {
-    const customer = await asaasRequest("POST", "/customers", {
-      name: school.name,
-      email: adminUser.email,
-      cpfCnpj: school.cnpj?.replace(/\D/g, "") || undefined,
-      mobilePhone: school.phone?.replace(/\D/g, "") || undefined,
-      notificationDisabled: false
-    });
-    customerId = customer.id;
-  }
-
-  // Cancela assinatura anterior antes de criar nova
-  if (existingSub?.asaas_subscription_id) {
+  if (existingSub?.mp_subscription_id) {
     try {
-      await asaasRequest("DELETE", `/subscriptions/${existingSub.asaas_subscription_id}`);
+      await preApprovalApi.update({
+        id: existingSub.mp_subscription_id,
+        body: { status: "cancelled" }
+      });
     } catch {
       // Ignora se já cancelada
     }
   }
 
-  const asaasSub = await asaasRequest("POST", "/subscriptions", {
-    customer: customerId,
-    billingType: "PIX",
-    value: planConfig.value,
-    nextDueDate: nextDueDate(),
-    cycle: "MONTHLY",
-    description: planConfig.description,
-    externalReference: schoolId
+  // Obtém ou cria o plano MP (PreApprovalPlan)
+  const mpPlanId = await getOrCreateMpPlan(plan);
+
+  // Cria a assinatura (PreApproval) — retorna init_point para o usuário pagar
+  const subscription = await preApprovalApi.create({
+    body: {
+      preapproval_plan_id: mpPlanId,
+      reason: planConfig.description,
+      payer_email: adminUser.email,
+      auto_recurring: {
+        frequency: 1,
+        frequency_type: "months",
+        transaction_amount: planConfig.value,
+        currency_id: "BRL"
+      },
+      back_url: `${frontendUrl}/dashboard`,
+      external_reference: schoolId,
+      status: "pending"
+    }
   });
 
-  // Busca Pix do primeiro pagamento
-  let pixQrCode = null, pixCode = null, invoiceUrl = null;
-  const payments = await asaasRequest("GET", `/subscriptions/${asaasSub.id}/payments`);
-  const firstPayment = payments.data?.[0];
-  if (firstPayment?.id) {
-    invoiceUrl = firstPayment.invoiceUrl;
-    try {
-      const pix = await asaasRequest("GET", `/payments/${firstPayment.id}/pixQrCode`);
-      pixQrCode = pix.encodedImage;
-      pixCode = pix.payload;
-    } catch {
-      // Pix ainda processando — retorna invoiceUrl como fallback
-    }
-  }
-
-  // Persiste como pendente até webhook confirmar pagamento
+  // Persiste como pendente até webhook confirmar
   await supabase.from("subscriptions").upsert({
     school_id: schoolId,
     user_id: adminUser.id,
@@ -137,23 +133,36 @@ export async function createCheckout({ schoolId, plan, school, adminUser }) {
     relatorios_limite: planConfig.relatorios_limite,
     professores_limite: planConfig.professores_limite,
     status: "pending",
-    asaas_customer_id: customerId,
-    asaas_subscription_id: asaasSub.id,
+    mp_subscription_id: subscription.id,
     updated_at: new Date().toISOString()
   }, { onConflict: "school_id" });
 
-  return { plan, value: planConfig.value, pixQrCode, pixCode, invoiceUrl };
+  return {
+    plan,
+    value: planConfig.value,
+    checkoutUrl: subscription.init_point,
+    subscriptionId: subscription.id
+  };
 }
 
 export async function cancelSubscription(schoolId) {
   const { data: sub } = await supabase
     .from("subscriptions")
-    .select("asaas_subscription_id")
+    .select("mp_subscription_id")
     .eq("school_id", schoolId)
     .single();
 
-  if (sub?.asaas_subscription_id) {
-    await asaasRequest("DELETE", `/subscriptions/${sub.asaas_subscription_id}`);
+  if (sub?.mp_subscription_id) {
+    const config = getMpClient();
+    const preApprovalApi = new PreApproval(config);
+    try {
+      await preApprovalApi.update({
+        id: sub.mp_subscription_id,
+        body: { status: "cancelled" }
+      });
+    } catch {
+      // Continua mesmo se já cancelada no MP
+    }
   }
 
   await supabase.from("subscriptions").upsert({
@@ -163,44 +172,72 @@ export async function cancelSubscription(schoolId) {
     relatorios_limite: 1,
     professores_limite: 1,
     status: "active",
-    asaas_subscription_id: null,
+    mp_subscription_id: null,
     updated_at: new Date().toISOString()
   }, { onConflict: "school_id" });
 }
 
-export async function processWebhook(event, payload) {
-  const subscriptionId = payload.payment?.subscription || payload.subscription?.id;
-  if (!subscriptionId) return;
+export async function processWebhook(topic, resourceId) {
+  if (!topic || !resourceId) return;
 
-  if (["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"].includes(event)) {
-    await supabase.from("subscriptions")
-      .update({
-        status: "active",
-        last_payment_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq("asaas_subscription_id", subscriptionId);
+  // Pagamento avulso ou de assinatura aprovado
+  if (topic === "payment") {
+    const config = getMpClient();
+    const paymentApi = new Payment(config);
+    let payment;
+    try {
+      payment = await paymentApi.get({ id: resourceId });
+    } catch {
+      return;
+    }
+
+    const externalRef = payment.external_reference;
+    const status = payment.status;
+
+    if (status === "approved" && externalRef) {
+      await supabase.from("subscriptions")
+        .update({
+          status: "active",
+          mp_payment_id: String(resourceId),
+          last_payment_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("school_id", externalRef);
+    }
     return;
   }
 
-  if (event === "PAYMENT_OVERDUE") {
-    await supabase.from("subscriptions")
-      .update({ status: "overdue", updated_at: new Date().toISOString() })
-      .eq("asaas_subscription_id", subscriptionId);
-    return;
-  }
+  // Mudança de status da assinatura
+  if (topic === "preapproval") {
+    const config = getMpClient();
+    const preApprovalApi = new PreApproval(config);
+    let sub;
+    try {
+      sub = await preApprovalApi.get({ id: resourceId });
+    } catch {
+      return;
+    }
 
-  if (["SUBSCRIPTION_DELETED", "PAYMENT_DELETED"].includes(event)) {
-    await supabase.from("subscriptions")
-      .update({
-        status: "canceled",
-        plan: "free",
-        aulas_limite: 5,
-        relatorios_limite: 1,
-        professores_limite: 1,
-        asaas_subscription_id: null,
-        updated_at: new Date().toISOString()
-      })
-      .eq("asaas_subscription_id", subscriptionId);
+    const mpStatus = sub.status;
+    const externalRef = sub.external_reference;
+    if (!externalRef) return;
+
+    if (mpStatus === "authorized") {
+      await supabase.from("subscriptions")
+        .update({ status: "active", updated_at: new Date().toISOString() })
+        .eq("school_id", externalRef);
+    } else if (["cancelled", "paused"].includes(mpStatus)) {
+      await supabase.from("subscriptions")
+        .update({
+          status: "canceled",
+          plan: "free",
+          aulas_limite: 5,
+          relatorios_limite: 1,
+          professores_limite: 1,
+          mp_subscription_id: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("school_id", externalRef);
+    }
   }
 }
