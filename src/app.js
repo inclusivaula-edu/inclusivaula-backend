@@ -30,6 +30,7 @@ import exerciseRoutes from "./routes/exercise.routes.js";
 import billingRoutes from "./routes/billing.routes.js";
 import peiRoutes from "./routes/pei.routes.js";
 import aeeSessionsRoutes from "./routes/aee-sessions.routes.js";
+import auditRoutes from "./routes/audit.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -158,6 +159,7 @@ app.use("/api", predictionRoutes);
 app.use("/api", billingRoutes);
 app.use("/api", peiRoutes);
 app.use("/api", aeeSessionsRoutes);
+app.use("/api", auditRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
