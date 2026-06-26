@@ -1,6 +1,7 @@
 import express from "express";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { roleMiddleware } from "../middlewares/role.middleware.js";
+import { auditMiddleware, AUDIT_ACTIONS } from "../services/audit.service.js";
 import {
   getPlan,
   subscribePlan,
@@ -10,14 +11,20 @@ import {
 
 const router = express.Router();
 
-// Webhook sem autenticação — validado por token Asaas no header
 router.post("/billing/webhook", handleWebhook);
-
-// Qualquer usuário autenticado pode ver o plano da escola
 router.get("/billing/plan", authMiddleware, getPlan);
 
-// Apenas admin da escola pode contratar ou cancelar
-router.post("/billing/subscribe", authMiddleware, roleMiddleware("school_admin"), subscribePlan);
-router.delete("/billing/cancel", authMiddleware, roleMiddleware("school_admin"), cancelPlan);
+router.post("/billing/subscribe",
+  authMiddleware,
+  roleMiddleware("school_admin"),
+  auditMiddleware(AUDIT_ACTIONS.PLAN_SUBSCRIBE, "subscription"),
+  subscribePlan
+);
+router.delete("/billing/cancel",
+  authMiddleware,
+  roleMiddleware("school_admin"),
+  auditMiddleware(AUDIT_ACTIONS.PLAN_CANCEL, "subscription"),
+  cancelPlan
+);
 
 export default router;

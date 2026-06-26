@@ -1,0 +1,41 @@
+name: CI — lint + audit + build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.18.1"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Audit (alta severidade falha o build)
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: Syntax check (todos os arquivos JS)
+        run: |
+          for f in $(find src -name "*.js"); do
+            node --check "$f" || exit 1
+          done
+          echo "Sintaxe OK"
+
+      - name: Verify required env names declared
+        run: |
+          grep -q "SUPABASE_URL" src/server.js
+          grep -q "SUPABASE_KEY" src/server.js
+          grep -q "OPENAI_API_KEY" src/server.js
+          echo "Vars obrigatórias declaradas no server.js"

@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+.git
+.github
+.vscode
+*.md
+test
+tests
+__tests__
+coverage
+.nyc_output
