@@ -1,29 +1,74 @@
 import { MercadoPagoConfig, PreApproval, PreApprovalPlan, Payment } from "mercadopago";
 import { supabase } from "../config/supabase.js";
 
-export const PLANS = {
-  free: {
-    value: 0,
-    description: "InclusivAula Free",
-    aulas_limite: 5,
-    relatorios_limite: 1,
-    professores_limite: 1
-  },
+// Catálogo de planos: plan + cycle → config completa
+export const PLAN_CATALOG = {
   pro: {
-    value: 49.00,
-    description: "InclusivAula Pro — 100 aulas/mês por escola",
+    label: "Pro Individual",
+    professores_limite: 1,
     aulas_limite: 100,
     relatorios_limite: 10,
-    professores_limite: 10
+    cycles: {
+      mensal:    { value: 49.90,  repetitions: null, description: "InclusivAula Pro — mensal" },
+      semestral: { value: 44.90,  repetitions: 6,    description: "InclusivAula Pro — semestral (6x)" },
+      anual:     { value: 39.90,  repetitions: 12,   description: "InclusivAula Pro — anual (12x)" }
+    }
   },
-  enterprise: {
-    value: 199.00,
-    description: "InclusivAula Enterprise — Ilimitado",
+  escola_mini: {
+    label: "Escola Mini",
+    professores_limite: 10,
     aulas_limite: -1,
     relatorios_limite: -1,
-    professores_limite: -1
+    cycles: {
+      mensal:    { value: 299.00, repetitions: null, description: "InclusivAula Escola Mini — mensal" },
+      semestral: { value: 269.00, repetitions: 6,    description: "InclusivAula Escola Mini — semestral (6x)" },
+      anual:     { value: 239.00, repetitions: 12,   description: "InclusivAula Escola Mini — anual (12x)" }
+    }
+  },
+  escola_standard: {
+    label: "Escola Standard",
+    professores_limite: 25,
+    aulas_limite: -1,
+    relatorios_limite: -1,
+    cycles: {
+      mensal:    { value: 798.00, repetitions: null, description: "InclusivAula Escola Standard — mensal" },
+      semestral: { value: 718.00, repetitions: 6,    description: "InclusivAula Escola Standard — semestral (6x)" },
+      anual:     { value: 638.00, repetitions: 12,   description: "InclusivAula Escola Standard — anual (12x)" }
+    }
+  },
+  premium: {
+    label: "Premium",
+    professores_limite: 50,
+    aulas_limite: -1,
+    relatorios_limite: -1,
+    cycles: {
+      mensal:    { value: 2499.00, repetitions: null, description: "InclusivAula Premium — mensal" },
+      semestral: { value: 2249.00, repetitions: 6,    description: "InclusivAula Premium — semestral (6x)" },
+      anual:     { value: 1999.00, repetitions: 12,   description: "InclusivAula Premium — anual (12x)" }
+    }
   }
 };
+
+// Planos legados (manter compatibilidade com assinaturas antigas)
+export const PLANS = {
+  free: { value: 0, aulas_limite: 5, relatorios_limite: 1, professores_limite: 1 },
+  pro: { value: 49.00, aulas_limite: 100, relatorios_limite: 10, professores_limite: 10 },
+  enterprise: { value: 199.00, aulas_limite: -1, relatorios_limite: -1, professores_limite: -1 }
+};
+
+export function getPlanConfig(plan, cycle = "mensal") {
+  const planDef = PLAN_CATALOG[plan];
+  if (!planDef) return null;
+  const cycleDef = planDef.cycles[cycle];
+  if (!cycleDef) return null;
+  return {
+    ...cycleDef,
+    professores_limite: planDef.professores_limite,
+    aulas_limite: planDef.aulas_limite,
+    relatorios_limite: planDef.relatorios_limite,
+    label: planDef.label
+  };
+}
 
 function getMpClient() {
   const token = process.env.MP_ACCESS_TOKEN;
@@ -31,45 +76,51 @@ function getMpClient() {
   return new MercadoPagoConfig({ accessToken: token });
 }
 
-// Cache de IDs de planos MP para evitar criar duplicatas
+// Cache de IDs de PreApprovalPlan no MP para evitar duplicatas
 const planCache = {};
 
-async function getOrCreateMpPlan(planKey) {
-  if (planCache[planKey]) return planCache[planKey];
+async function getOrCreateMpPlan(plan, cycle) {
+  const cacheKey = `${plan}_${cycle}`;
+  if (planCache[cacheKey]) return planCache[cacheKey];
 
   const config = getMpClient();
-  const planConfig = PLANS[planKey];
+  const planConfig = getPlanConfig(plan, cycle);
   const planApi = new PreApprovalPlan(config);
 
-  const result = await planApi.create({
-    body: {
-      reason: planConfig.description,
-      auto_recurring: {
-        frequency: 1,
-        frequency_type: "months",
-        transaction_amount: planConfig.value,
-        currency_id: "BRL"
-      },
-      payment_methods_allowed: {
-        payment_types: [{ id: "credit_card" }, { id: "debit_card" }]
-      },
-      back_url: `${process.env.FRONTEND_URL || "https://www.inclusivaula.com.br"}/dashboard`
-    }
-  });
+  const body = {
+    reason: planConfig.description,
+    auto_recurring: {
+      frequency: 1,
+      frequency_type: "months",
+      transaction_amount: planConfig.value,
+      currency_id: "BRL"
+    },
+    payment_methods_allowed: {
+      payment_types: [{ id: "credit_card" }, { id: "debit_card" }]
+    },
+    back_url: `${process.env.FRONTEND_URL || "https://www.inclusivaula.com.br"}/dashboard`
+  };
 
-  planCache[planKey] = result.id;
+  // Planos com fidelidade: limita o número de cobranças
+  if (planConfig.repetitions) {
+    body.auto_recurring.repetitions = planConfig.repetitions;
+  }
+
+  const result = await planApi.create({ body });
+  planCache[cacheKey] = result.id;
   return result.id;
 }
 
 export async function getCurrentPlan(schoolId) {
   const { data } = await supabase
     .from("subscriptions")
-    .select("plan, status, aulas_limite, relatorios_limite, professores_limite, last_payment_at, updated_at")
+    .select("plan, cycle, status, aulas_limite, relatorios_limite, professores_limite, last_payment_at, updated_at")
     .eq("school_id", schoolId)
     .single();
 
   return data || {
     plan: "free",
+    cycle: null,
     status: "active",
     aulas_limite: 5,
     relatorios_limite: 1,
@@ -77,9 +128,9 @@ export async function getCurrentPlan(schoolId) {
   };
 }
 
-export async function createCheckout({ schoolId, plan, school, adminUser }) {
-  const planConfig = PLANS[plan];
-  if (!planConfig || plan === "free") throw new Error("Plano inválido para contratação");
+export async function createCheckout({ schoolId, plan, cycle = "mensal", school, adminUser }) {
+  const planConfig = getPlanConfig(plan, cycle);
+  if (!planConfig) throw new Error("Plano ou ciclo inválido");
 
   const config = getMpClient();
   const preApprovalApi = new PreApproval(config);
@@ -103,32 +154,34 @@ export async function createCheckout({ schoolId, plan, school, adminUser }) {
     }
   }
 
-  // Obtém ou cria o plano MP (PreApprovalPlan)
-  const mpPlanId = await getOrCreateMpPlan(plan);
+  const mpPlanId = await getOrCreateMpPlan(plan, cycle);
 
-  // Cria a assinatura (PreApproval) — retorna init_point para o usuário pagar
-  const subscription = await preApprovalApi.create({
-    body: {
-      preapproval_plan_id: mpPlanId,
-      reason: planConfig.description,
-      payer_email: adminUser.email,
-      auto_recurring: {
-        frequency: 1,
-        frequency_type: "months",
-        transaction_amount: planConfig.value,
-        currency_id: "BRL"
-      },
-      back_url: `${frontendUrl}/dashboard`,
-      external_reference: schoolId,
-      status: "pending"
-    }
-  });
+  const subBody = {
+    preapproval_plan_id: mpPlanId,
+    reason: planConfig.description,
+    payer_email: adminUser.email,
+    auto_recurring: {
+      frequency: 1,
+      frequency_type: "months",
+      transaction_amount: planConfig.value,
+      currency_id: "BRL"
+    },
+    back_url: `${frontendUrl}/dashboard`,
+    external_reference: schoolId,
+    status: "pending"
+  };
 
-  // Persiste como pendente até webhook confirmar
+  if (planConfig.repetitions) {
+    subBody.auto_recurring.repetitions = planConfig.repetitions;
+  }
+
+  const subscription = await preApprovalApi.create({ body: subBody });
+
   await supabase.from("subscriptions").upsert({
     school_id: schoolId,
     user_id: adminUser.id,
     plan,
+    cycle,
     aulas_limite: planConfig.aulas_limite,
     relatorios_limite: planConfig.relatorios_limite,
     professores_limite: planConfig.professores_limite,
@@ -139,6 +192,7 @@ export async function createCheckout({ schoolId, plan, school, adminUser }) {
 
   return {
     plan,
+    cycle,
     value: planConfig.value,
     checkoutUrl: subscription.init_point,
     subscriptionId: subscription.id
@@ -168,6 +222,7 @@ export async function cancelSubscription(schoolId) {
   await supabase.from("subscriptions").upsert({
     school_id: schoolId,
     plan: "free",
+    cycle: null,
     aulas_limite: 5,
     relatorios_limite: 1,
     professores_limite: 1,
@@ -180,7 +235,6 @@ export async function cancelSubscription(schoolId) {
 export async function processWebhook(topic, resourceId) {
   if (!topic || !resourceId) return;
 
-  // Pagamento avulso ou de assinatura aprovado
   if (topic === "payment") {
     const config = getMpClient();
     const paymentApi = new Payment(config);
@@ -207,7 +261,6 @@ export async function processWebhook(topic, resourceId) {
     return;
   }
 
-  // Mudança de status da assinatura
   if (topic === "preapproval") {
     const config = getMpClient();
     const preApprovalApi = new PreApproval(config);
@@ -231,6 +284,7 @@ export async function processWebhook(topic, resourceId) {
         .update({
           status: "canceled",
           plan: "free",
+          cycle: null,
           aulas_limite: 5,
           relatorios_limite: 1,
           professores_limite: 1,

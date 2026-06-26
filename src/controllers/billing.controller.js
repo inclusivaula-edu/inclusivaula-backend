@@ -3,11 +3,14 @@ import {
   createCheckout,
   cancelSubscription,
   processWebhook,
-  PLANS
+  PLAN_CATALOG
 } from "../services/billing.service.js";
 import { supabase } from "../config/supabase.js";
 import { internalError } from "../utils/sanitize.js";
 import { createHmac, timingSafeEqual } from "crypto";
+
+const VALID_PLANS = Object.keys(PLAN_CATALOG);
+const VALID_CYCLES = ["mensal", "semestral", "anual"];
 
 export const getPlan = async (req, res) => {
   try {
@@ -16,10 +19,7 @@ export const getPlan = async (req, res) => {
       success: true,
       data: {
         ...current,
-        available_plans: {
-          pro: { value: 49.00, aulas_limite: 100, relatorios_limite: 10, professores_limite: 10 },
-          enterprise: { value: 199.00, aulas_limite: -1, relatorios_limite: -1, professores_limite: -1 }
-        }
+        catalog: PLAN_CATALOG
       }
     });
   } catch (error) {
@@ -30,9 +30,19 @@ export const getPlan = async (req, res) => {
 
 export const subscribePlan = async (req, res) => {
   try {
-    const { plan } = req.body;
-    if (!plan || !["pro", "enterprise"].includes(plan)) {
-      return res.status(400).json({ success: false, error: "Plano inválido. Use: pro ou enterprise" });
+    const { plan, cycle = "mensal" } = req.body;
+
+    if (!plan || !VALID_PLANS.includes(plan)) {
+      return res.status(400).json({
+        success: false,
+        error: `Plano inválido. Use: ${VALID_PLANS.join(", ")}`
+      });
+    }
+    if (!VALID_CYCLES.includes(cycle)) {
+      return res.status(400).json({
+        success: false,
+        error: `Ciclo inválido. Use: ${VALID_CYCLES.join(", ")}`
+      });
     }
 
     const { data: school, error: schoolError } = await supabase
@@ -48,6 +58,7 @@ export const subscribePlan = async (req, res) => {
     const result = await createCheckout({
       schoolId: req.schoolId,
       plan,
+      cycle,
       school,
       adminUser: req.user
     });
@@ -82,7 +93,6 @@ function validateMpSignature(req) {
   const xRequestId = req.headers["x-request-id"] || "";
   const { id: dataId } = req.query;
 
-  // Formato: ts=<timestamp>,v1=<hmac>
   const parts = Object.fromEntries(
     xSignature.split(",").map(p => p.split("="))
   );
@@ -100,20 +110,17 @@ function validateMpSignature(req) {
   }
 }
 
-// Endpoint sem authMiddleware — validado por assinatura MP
 export const handleWebhook = async (req, res) => {
   try {
-    // Sempre responder 200 rapidamente para o MP não retentar
     if (!validateMpSignature(req)) {
       return res.status(401).end();
     }
 
-    const { type, action, data } = req.body;
+    const { type, data } = req.body;
     const resourceId = data?.id || req.query.id;
 
     if (!type || !resourceId) return res.status(200).end();
 
-    // type: "payment" | "preapproval"
     await processWebhook(type, resourceId);
     return res.status(200).end();
   } catch (error) {
