@@ -65,11 +65,11 @@ export const subscribePlan = async (req, res) => {
 
     return res.json({ success: true, data: result });
   } catch (error) {
-    console.error("subscribePlan:", error.message);
+    console.error("subscribePlan:", error.message, error.cause || "");
     const isConfig = error.message.includes("não configurado");
     return res.status(isConfig ? 503 : 500).json({
       success: false,
-      error: isConfig ? error.message : internalError(error)
+      error: isConfig ? error.message : `Erro ao criar assinatura: ${error.message}`
     });
   }
 };

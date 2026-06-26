@@ -1,7 +1,7 @@
-import { MercadoPagoConfig, PreApproval, PreApprovalPlan, Payment } from "mercadopago";
+import { MercadoPagoConfig, PreApproval, Payment } from "mercadopago";
 import { supabase } from "../config/supabase.js";
+import { logger } from "../config/logger.js";
 
-// Catálogo de planos: plan + cycle → config completa
 export const PLAN_CATALOG = {
   pro: {
     label: "Pro Individual",
@@ -49,7 +49,6 @@ export const PLAN_CATALOG = {
   }
 };
 
-// Planos legados (manter compatibilidade com assinaturas antigas)
 export const PLANS = {
   free: { value: 0, aulas_limite: 5, relatorios_limite: 1, professores_limite: 1 },
   pro: { value: 49.00, aulas_limite: 100, relatorios_limite: 10, professores_limite: 10 },
@@ -74,41 +73,6 @@ function getMpClient() {
   const token = process.env.MP_ACCESS_TOKEN;
   if (!token) throw new Error("Módulo de pagamento não configurado");
   return new MercadoPagoConfig({ accessToken: token });
-}
-
-// Cache de IDs de PreApprovalPlan no MP para evitar duplicatas
-const planCache = {};
-
-async function getOrCreateMpPlan(plan, cycle) {
-  const cacheKey = `${plan}_${cycle}`;
-  if (planCache[cacheKey]) return planCache[cacheKey];
-
-  const config = getMpClient();
-  const planConfig = getPlanConfig(plan, cycle);
-  const planApi = new PreApprovalPlan(config);
-
-  const body = {
-    reason: planConfig.description,
-    auto_recurring: {
-      frequency: 1,
-      frequency_type: "months",
-      transaction_amount: planConfig.value,
-      currency_id: "BRL"
-    },
-    payment_methods_allowed: {
-      payment_types: [{ id: "credit_card" }, { id: "debit_card" }]
-    },
-    back_url: `${process.env.FRONTEND_URL || "https://www.inclusivaula.com.br"}/dashboard`
-  };
-
-  // Planos com fidelidade: limita o número de cobranças
-  if (planConfig.repetitions) {
-    body.auto_recurring.repetitions = planConfig.repetitions;
-  }
-
-  const result = await planApi.create({ body });
-  planCache[cacheKey] = result.id;
-  return result.id;
 }
 
 export async function getCurrentPlan(schoolId) {
@@ -154,28 +118,32 @@ export async function createCheckout({ schoolId, plan, cycle = "mensal", school,
     }
   }
 
-  const mpPlanId = await getOrCreateMpPlan(plan, cycle);
-
-  const subBody = {
-    preapproval_plan_id: mpPlanId,
-    reason: planConfig.description,
-    payer_email: adminUser.email,
-    auto_recurring: {
-      frequency: 1,
-      frequency_type: "months",
-      transaction_amount: planConfig.value,
-      currency_id: "BRL"
-    },
-    back_url: `${frontendUrl}/dashboard`,
-    external_reference: schoolId,
-    status: "pending"
+  // Cria PreApproval diretamente (sem PreApprovalPlan intermediário)
+  const autoRecurring = {
+    frequency: 1,
+    frequency_type: "months",
+    transaction_amount: planConfig.value,
+    currency_id: "BRL"
   };
 
   if (planConfig.repetitions) {
-    subBody.auto_recurring.repetitions = planConfig.repetitions;
+    autoRecurring.repetitions = planConfig.repetitions;
   }
 
-  const subscription = await preApprovalApi.create({ body: subBody });
+  logger.info({ plan, cycle, value: planConfig.value, email: adminUser.email }, "creating MP subscription");
+
+  const subscription = await preApprovalApi.create({
+    body: {
+      reason: planConfig.description,
+      payer_email: adminUser.email,
+      auto_recurring: autoRecurring,
+      back_url: `${frontendUrl}/dashboard`,
+      external_reference: schoolId,
+      status: "pending"
+    }
+  });
+
+  logger.info({ subscriptionId: subscription.id, initPoint: !!subscription.init_point }, "MP subscription created");
 
   await supabase.from("subscriptions").upsert({
     school_id: schoolId,
