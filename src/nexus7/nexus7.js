@@ -223,16 +223,32 @@ export const runNexus7 = async (input) => {
   }
 
   const perfilAluno = input.student
-    ? `
-PERFIL ESPECÍFICO DO ALUNO:
-- Nome: ${sanitizeForPrompt(input.student.full_name)}
-- Série: ${sanitizeForPrompt(input.student.grade)}
-- Necessidade especial: ${sanitizeForPrompt(input.student.disability_type || "Não especificada")}
-- Observações pedagógicas: ${sanitizeForPrompt(input.student.notes || "Nenhuma observação registrada")}
-- Responsável: ${sanitizeForPrompt(input.student.guardian_name || "Não informado")}
+    ? (() => {
+        const s = input.student;
+        const comportamento = sanitizeForPrompt(s.observable_behavior || "");
+        const oQueFunciona = sanitizeForPrompt(s.what_helps || "");
+        const nee = sanitizeForPrompt(s.disability_type || "");
+        const notas = sanitizeForPrompt(s.notes || "");
 
-Personalize a aula especificamente para este aluno, usando as
-observações pedagógicas como guia para as adaptações.`
+        return `
+PERFIL ESPECÍFICO DO ALUNO:
+- Nome: ${sanitizeForPrompt(s.full_name)}
+- Série: ${sanitizeForPrompt(s.grade)}
+${comportamento ? `
+O QUE ESSE ALUNO FAZ DIFERENTE DA TURMA (comportamento observável pelo professor):
+"${comportamento}"
+→ Use esta informação como ponto de partida para TODAS as adaptações desta aula.
+  Cada atividade deve considerar este comportamento específico.` : ""}
+${oQueFunciona ? `
+O QUE JÁ FUNCIONA COM ESSE ALUNO (estratégias validadas em sala):
+"${oQueFunciona}"
+→ Mantenha e amplie estas estratégias. Não proponha o oposto do que já foi validado.` : ""}
+${nee ? `- Perfil NEE declarado: ${nee}` : ""}
+${notas ? `- Observações adicionais: ${notas}` : ""}
+
+Personalize a aula especificamente para este aluno. Os campos "O que faz diferente"
+e "O que funciona" têm prioridade sobre qualquer generalização por tipo de NEE.`;
+      })()
     : `
 PERFIL GERAL DO ALUNO:
 - Necessidade especial: ${deficiencia}
