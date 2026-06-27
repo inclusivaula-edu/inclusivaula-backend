@@ -323,7 +323,122 @@ export const generateLessonPDF = async (lessonData, res) => {
   if (lesson.adaptacoes?.length) y = desenharLista(doc, "Adaptações Inclusivas", lesson.adaptacoes.map(a => typeof a === "string" ? a : JSON.stringify(a)), CORES.azul, y);
   if (lesson.recursos?.length)   y = desenharLista(doc, "Recursos Didáticos", lesson.recursos.map(r => typeof r === "string" ? r : JSON.stringify(r)), CORES.verde, y);
   if (lesson.avaliacao)          y = desenharSecao(doc, "Avaliação", lesson.avaliacao, CORES.azul, y);
-  if (lesson.base_legal)         desenharSecao(doc, "Base Legal e Científica", lesson.base_legal, CORES.cinza, y);
+  if (lesson.base_legal)         y = desenharSecao(doc, "Base Legal e Científica", lesson.base_legal, CORES.cinza, y);
+
+  // ── MATERIAL DE AULA (Chamada 2) ─────────────────────────────────
+  if (lesson.roteiro_professor?.length) {
+    doc.addPage(); y = 60;
+    // Aviso de rascunho
+    doc.rect(50, y, doc.page.width - 100, 28).fill("#FFF8E1");
+    doc.fontSize(9).fillColor(CORES.amarelo).font("Helvetica-Oblique")
+      .text("✏️  Rascunho pedagógico — edite antes de usar com o aluno.", 60, y + 9, { width: doc.page.width - 120 });
+    y += 36;
+
+    // Título da seção
+    doc.rect(50, y, doc.page.width - 100, 28).fill(CORES.verde);
+    doc.fontSize(13).fillColor("#fff").font("Helvetica-Bold")
+      .text("Roteiro do Professor", 60, y + 8);
+    y += 36;
+
+    lesson.roteiro_professor.forEach((etapa, i) => {
+      if (y > doc.page.height - 120) { doc.addPage(); y = 60; }
+
+      // Cabeçalho da etapa
+      const labelEtapa = `${etapa.etapa}${etapa.tempo ? "  ·  " + etapa.tempo : ""}`;
+      doc.rect(50, y, doc.page.width - 100, 20).fill(i % 2 === 0 ? "#e8f7fd" : "#edfff6");
+      doc.fontSize(10).fillColor(CORES.azul).font("Helvetica-Bold")
+        .text(labelEtapa, 58, y + 5);
+      y += 24;
+
+      if (etapa.acao) {
+        doc.fontSize(10).fillColor("#2c2c2a").font("Helvetica")
+          .text(etapa.acao, 58, y, { width: doc.page.width - 116 });
+        y = doc.y + 6;
+      }
+      if (etapa.fala_sugerida) {
+        const hFala = doc.heightOfString(`💬 "${etapa.fala_sugerida}"`, { width: doc.page.width - 126 }) + 12;
+        doc.rect(58, y, doc.page.width - 116, hFala).fill("#f5f9ff");
+        doc.fontSize(9).fillColor(CORES.cinza).font("Helvetica-Oblique")
+          .text(`💬 "${etapa.fala_sugerida}"`, 66, y + 6, { width: doc.page.width - 132 });
+        y += hFala + 4;
+      }
+      if (etapa.dica_nee) {
+        doc.fontSize(9).fillColor(CORES.amarelo).font("Helvetica-Oblique")
+          .text(`★ NEE: ${etapa.dica_nee}`, 58, y, { width: doc.page.width - 116 });
+        y = doc.y + 10;
+      }
+    });
+  }
+
+  if (lesson.ficha_atividade) {
+    doc.addPage(); y = 60;
+    const ficha = lesson.ficha_atividade;
+
+    // Aviso de rascunho
+    doc.rect(50, y, doc.page.width - 100, 28).fill("#FFF8E1");
+    doc.fontSize(9).fillColor(CORES.amarelo).font("Helvetica-Oblique")
+      .text("✏️  Rascunho pedagógico — adapte para o seu aluno antes de imprimir.", 60, y + 9, { width: doc.page.width - 120 });
+    y += 36;
+
+    // Cabeçalho da ficha
+    doc.rect(50, y, doc.page.width - 100, 28).fill(CORES.roxo);
+    doc.fontSize(13).fillColor("#fff").font("Helvetica-Bold")
+      .text("Ficha de Atividade", 60, y + 8);
+    y += 36;
+
+    if (ficha.titulo) {
+      doc.fontSize(11).fillColor(CORES.roxo).font("Helvetica-Bold")
+        .text(ficha.titulo, 50, y, { width: doc.page.width - 100, align: "center" });
+      y = doc.y + 6;
+    }
+    if (ficha.instrucao_geral) {
+      doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica-Oblique")
+        .text(ficha.instrucao_geral, 50, y, { width: doc.page.width - 100 });
+      y = doc.y + 12;
+    }
+
+    (ficha.atividades || []).forEach((ativ) => {
+      if (y > doc.page.height - 120) { doc.addPage(); y = 60; }
+
+      // Número da atividade
+      doc.rect(50, y, 22, 22).fill(CORES.roxo);
+      doc.fontSize(11).fillColor("#fff").font("Helvetica-Bold")
+        .text(String(ativ.numero), 50, y + 5, { width: 22, align: "center" });
+
+      doc.fontSize(10).fillColor("#2c2c2a").font("Helvetica")
+        .text(ativ.enunciado, 80, y + 5, { width: doc.page.width - 130 });
+      y = doc.y + 6;
+
+      if (ativ.opcoes?.length) {
+        ativ.opcoes.forEach(op => {
+          if (y > doc.page.height - 60) { doc.addPage(); y = 60; }
+          doc.fontSize(10).fillColor("#2c2c2a").font("Helvetica")
+            .text(op, 90, y, { width: doc.page.width - 140 });
+          y = doc.y + 4;
+        });
+        y += 6;
+      }
+
+      // Espaço de resposta
+      const tipo = ativ.espaco_resposta;
+      if (tipo === "linha") {
+        doc.moveTo(80, y + 10).lineTo(doc.page.width - 50, y + 10)
+          .strokeColor(CORES.bordaClara).lineWidth(0.5).stroke();
+        y += 24;
+      } else if (tipo === "paragrafo") {
+        for (let l = 0; l < 3; l++) {
+          doc.moveTo(80, y + 10 + l * 16).lineTo(doc.page.width - 50, y + 10 + l * 16)
+            .strokeColor(CORES.bordaClara).lineWidth(0.5).stroke();
+        }
+        y += 60;
+      } else if (tipo === "caixa") {
+        doc.rect(80, y, doc.page.width - 130, 50).strokeColor(CORES.bordaClara).lineWidth(0.5).stroke();
+        y += 60;
+      } else {
+        y += 12;
+      }
+    });
+  }
 
   await enviarPDF(doc, res, nomeArquivo);
 };

@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { runNexus7 } from "../nexus7/nexus7.js";
+import { runNexus7Material } from "../nexus7/nexus7-material.js";
 import { supabase } from "../config/supabase.js";
 import { verificarLimiteAula, incrementarAula, getUsoMensal } from "./usage.service.js";
 import { saveToMemory, buildResume } from "../nexus7/memory.service.js";
@@ -44,10 +45,22 @@ export const createLessonJob = async (input) => {
 
   setTimeout(async () => {
     try {
-      const result = await runNexus7(input);
+      // Chamada 1 (plano pedagógico) e Chamada 2 (material de aula) em paralelo
+      const [result, material] = await Promise.all([
+        runNexus7(input),
+        runNexus7Material(input).catch(err => {
+          console.error("Material de aula (non-blocking):", err.message);
+          return null;
+        })
+      ]);
+
+      const resultadoCompleto = material
+        ? { ...result, roteiro_professor: material.roteiro_professor, ficha_atividade: material.ficha_atividade }
+        : result;
+
       const { error: updateError } = await supabase
         .from("lessons")
-        .update({ status: "completed", result })
+        .update({ status: "completed", result: resultadoCompleto })
         .eq("id", id);
 
       if (updateError) {
