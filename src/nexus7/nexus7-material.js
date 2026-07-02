@@ -63,17 +63,41 @@ prático para um colega de trabalho usar amanhã em sala.
 Gere dois produtos:
 
 1. ROTEIRO DO PROFESSOR: passo a passo cronometrado da aula inteira.
-   - Dividir em Abertura, Desenvolvimento e Fechamento com tempo de cada etapa.
-   - Cada etapa deve ter: o que o professor faz, o que diz (linguagem real, não
-     jargão), e uma dica específica para o perfil NEE descrito.
-   - Tom: colega experiente passando a receita, não manual pedagógico formal.
+   Estruture em EXATAMENTE 3 etapas: Introdução, Desenvolvimento e Conclusão.
+   Cada etapa deve ser COMPLETA e DETALHADA — como se fosse a última instrução
+   antes de o professor entrar na sala. Para cada etapa inclua:
+
+   INTRODUÇÃO (tipicamente 10-15 min):
+   - Como ativar o conhecimento prévio dos alunos (pergunta de aquecimento,
+     conexão com algo do dia a dia ou com aula anterior).
+   - Sequência de ações do professor, passo a passo.
+   - Fala sugerida completa: o que dizer para apresentar o tema,
+     criar curiosidade, engajar a turma. Use linguagem real, sem jargão.
+   - Dica NEE: como adaptar a introdução especificamente para o perfil descrito.
+
+   DESENVOLVIMENTO (tipicamente 25-30 min):
+   - Descrição detalhada de CADA atividade em ordem cronológica.
+   - Transições entre as atividades (o que fazer quando uma termina).
+   - Falas sugeridas para instruir, motivar, corrigir gentilmente e manter ritmo.
+   - Pontos de atenção: o que pode dar errado e como contornar.
+   - Dica NEE: adaptações específicas durante as atividades principais.
+
+   CONCLUSÃO (tipicamente 10-15 min):
+   - Como fechar o conteúdo com a turma (síntese, mapa mental, pergunta final).
+   - Fala sugerida para retomar o que foi aprendido e valorizar a participação.
+   - Como encaminhar o "para casa" ou o próximo passo.
+   - Dica NEE: como incluir o aluno NEE na síntese final da aula.
+
+   Tom: colega experiente passando a receita de cozinha — direto, prático,
+   sem jargão pedagógico. Cada etapa deve ter conteúdo suficiente para o
+   professor nunca travar ou improvisar.
 
 2. FICHA DE ATIVIDADE: exercícios prontos para o aluno preencher ou realizar.
    - 3 a 5 atividades de dificuldade progressiva.
    - Instrução curta, direta, na linguagem adequada ao perfil e à série.
    - Cada atividade deve ser realizável em 5-10 minutos.
    - Para alunos com dislexia ou baixa visão: instruções muito curtas, uma ação
-     por vez. Para TEA: instrução visual/concreta. Para TDAH: curta e com chekcbox.
+     por vez. Para TEA: instrução visual/concreta. Para TDAH: curta e com checkbox.
 
 IMPORTANTE:
 - Este material é um RASCUNHO PEDAGÓGICO para o professor editar antes de usar.
@@ -81,6 +105,8 @@ IMPORTANTE:
 - Calibre o vocabulário e complexidade para a série informada.
 - Se o perfil NEE impõe restrição (ex: dislexia → evitar textos longos),
   respeite isso na ficha.
+- O campo "acao" de cada etapa deve ter pelo menos 3 frases detalhadas.
+- O campo "fala_sugerida" deve ser uma fala completa e natural, não um resumo.
 
 ═══════════════════════════════════════════════
 FORMATO DE RESPOSTA
@@ -90,25 +116,25 @@ Retorne APENAS JSON válido, sem markdown, sem texto fora do JSON.
 {
   "roteiro_professor": [
     {
-      "etapa": "Abertura",
+      "etapa": "Introdução",
       "tempo": "X min",
-      "acao": "O que o professor faz nesta etapa — descrito em ações concretas",
-      "fala_sugerida": "O que o professor pode dizer — linguagem real, informal",
-      "dica_nee": "Dica específica para o perfil de NEE descrito"
+      "acao": "Sequência detalhada de ações do professor nesta etapa — mínimo 3 frases descrevendo cada passo concreto",
+      "fala_sugerida": "Fala completa e natural que o professor pode usar — inclui a pergunta de aquecimento, a apresentação do tema e como criar curiosidade",
+      "dica_nee": "Adaptação específica e acionável para o perfil de NEE descrito — o que mudar, o que preparar com antecedência"
     },
     {
       "etapa": "Desenvolvimento",
       "tempo": "X min",
-      "acao": "...",
-      "fala_sugerida": "...",
-      "dica_nee": "..."
+      "acao": "Descrição detalhada de cada atividade em ordem cronológica, incluindo transições e pontos de atenção",
+      "fala_sugerida": "Falas para instruir cada atividade, motivar alunos e corrigir gentilmente — linguagem real de sala de aula",
+      "dica_nee": "Adaptações durante as atividades principais para o perfil NEE descrito"
     },
     {
-      "etapa": "Fechamento",
+      "etapa": "Conclusão",
       "tempo": "X min",
-      "acao": "...",
-      "fala_sugerida": "...",
-      "dica_nee": "..."
+      "acao": "Como fechar a aula: síntese do conteúdo, valorização da participação e encaminhamento do próximo passo",
+      "fala_sugerida": "Fala de fechamento que retoma o que foi aprendido e encerra a aula com clareza",
+      "dica_nee": "Como incluir o aluno NEE ativamente na síntese final"
     }
   ],
   "ficha_atividade": {
@@ -144,7 +170,7 @@ Este material é um rascunho para o professor editar — seja rico em detalhes m
         { role: "user", content: prompt }
       ],
       temperature: 0.6,
-      max_tokens: 4096
+      max_tokens: 6000
     });
 
     const content = response.choices[0].message.content.trim();
