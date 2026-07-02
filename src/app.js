@@ -31,6 +31,7 @@ import billingRoutes from "./routes/billing.routes.js";
 import peiRoutes from "./routes/pei.routes.js";
 import aeeSessionsRoutes from "./routes/aee-sessions.routes.js";
 import auditRoutes from "./routes/audit.routes.js";
+import simuladoRoutes from "./routes/simulado.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -89,6 +90,7 @@ app.use("/api/exercises/generate", aiLimiter);
 app.use("/api/exercises/rubrica", aiLimiter);
 app.use("/api/pei/generate", aiLimiter);
 app.use("/api/aee/generate", aiLimiter);
+app.use("/api/simulado/generate", aiLimiter);
 
 app.use(express.json({ limit: "200kb" }));
 
@@ -160,6 +162,7 @@ app.use("/api", billingRoutes);
 app.use("/api", peiRoutes);
 app.use("/api", aeeSessionsRoutes);
 app.use("/api", auditRoutes);
+app.use("/api", simuladoRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
