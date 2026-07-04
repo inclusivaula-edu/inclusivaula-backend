@@ -14,7 +14,7 @@ async function chamadaComRetry(fn, tentativas = 3) {
   }
 }
 
-export const runNexus7Exercises = async ({ lesson, student, quantidade = 5 }) => {
+export const runNexus7Exercises = async ({ lesson, student, quantidade = 5, pontuacao = 10 }) => {
   const qtd = Math.min(Math.max(Number(quantidade) || 5, 1), 20);
 
   const perfilAluno = student
@@ -86,7 +86,7 @@ Retorne APENAS JSON válido, sem markdown, sem texto fora do JSON.
     }
   ],
   "criterios_avaliacao": "como avaliar o desempenho considerando o perfil do aluno",
-  "pontuacao_maxima": 10,
+  "pontuacao_maxima": ${pontuacao},
   "orientacoes_aplicador": "dicas para o professor ao aplicar estes exercícios com o aluno"
 }
 `;
@@ -99,7 +99,9 @@ Retorne APENAS JSON válido, sem markdown, sem texto fora do JSON.
           role: "system",
           content: `Você é especialista em educação inclusiva brasileira, BNCC, avaliação
 adaptada, DUA/CAST e legislação educacional (Lei 13.146/2015, LDB 9.394/1996).
-Cria exercícios pedagogicamente sólidos e inclusivos. Retorne sempre JSON válido.`
+Cria exercícios pedagogicamente sólidos e inclusivos.
+REGRA OBRIGATÓRIA: TODO o conteúdo DEVE ser em PORTUGUÊS BRASILEIRO — título, instruções, enunciados, opções, justificativas, adaptações, critérios. NUNCA escreva em inglês.
+Retorne sempre JSON válido sem markdown.`
         },
         { role: "user", content: prompt }
       ],

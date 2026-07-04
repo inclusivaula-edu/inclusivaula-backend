@@ -6,7 +6,7 @@ import PDFDocument from "pdfkit";
 
 export const generateExercises = async (req, res) => {
   try {
-    const { lessonId, studentId, quantidade = 5 } = req.body;
+    const { lessonId, studentId, quantidade = 5, pontuacao = 10 } = req.body;
 
     if (!lessonId) {
       return res.status(400).json({ success: false, error: "lessonId é obrigatório" });
@@ -37,7 +37,8 @@ export const generateExercises = async (req, res) => {
       }
     }
 
-    const exercicios = await runNexus7Exercises({ lesson, student, quantidade: qtd });
+    const pts = Math.min(Math.max(Number(pontuacao) || 10, 1), 100);
+    const exercicios = await runNexus7Exercises({ lesson, student, quantidade: qtd, pontuacao: pts });
 
     const { data: saved, error: saveError } = await supabase
       .from("activities")
@@ -86,15 +87,16 @@ export const getExercisesByLesson = async (req, res) => {
 
 export const registerGrade = async (req, res) => {
   try {
-    const { activityId, studentId, score, feedback } = req.body;
+    const { activityId, studentId, score, feedback, max_score = 10 } = req.body;
 
     if (!activityId || !studentId || score === undefined || score === null) {
       return res.status(400).json({ success: false, error: "activityId, studentId e score são obrigatórios" });
     }
 
+    const maxScore = Math.min(Math.max(Number(max_score) || 10, 1), 100);
     const numScore = Number(score);
-    if (isNaN(numScore) || numScore < 0 || numScore > 10) {
-      return res.status(400).json({ success: false, error: "score deve ser um número entre 0 e 10" });
+    if (isNaN(numScore) || numScore < 0 || numScore > maxScore) {
+      return res.status(400).json({ success: false, error: `score deve ser um número entre 0 e ${maxScore}` });
     }
 
     // Verifica que o aluno pertence à escola do professor
@@ -113,7 +115,7 @@ export const registerGrade = async (req, res) => {
         school_id: req.schoolId,
         title: "Avaliação de exercícios",
         score: numScore,
-        max_score: 10,
+        max_score: maxScore,
         feedback: feedback ? String(feedback).substring(0, 1000) : null,
         evaluation_date: new Date().toISOString().split("T")[0]
       }])
@@ -305,10 +307,15 @@ export const getAvaliacaoPDF = async (req, res) => {
       }
     }
 
-    doc.moveDown(1);
-    doc.fontSize(9).fillColor(CORES_PDF.cinza).text("Gerado por InclusivAula — www.inclusivaula.com.br", { align: "center" });
-    if (tipo === "gabarito") {
-      doc.fontSize(9).fillColor(CORES_PDF.amarelo).text("DOCUMENTO EXCLUSIVO DO PROFESSOR — NÃO DISTRIBUA AOS ALUNOS", { align: "center" });
+    const totalPages = doc.bufferedPageRange().count;
+    for (let p = 0; p < totalPages; p++) {
+      doc.switchToPage(p);
+      doc.fontSize(8).fillColor(CORES_PDF.cinza)
+        .text("Gerado por InclusivAula — www.inclusivaula.com.br", 50, 780, { align: "center", width: 495 });
+      if (tipo === "gabarito") {
+        doc.fontSize(8).fillColor(CORES_PDF.amarelo)
+          .text("DOCUMENTO EXCLUSIVO DO PROFESSOR — NÃO DISTRIBUA AOS ALUNOS", 50, 792, { align: "center", width: 495 });
+      }
     }
 
     doc.end();
