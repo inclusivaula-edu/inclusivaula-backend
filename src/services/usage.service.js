@@ -59,7 +59,7 @@ export const getUsoMensal = async (userId, schoolId) => {
 // Verifica se o usuário pode gerar uma aula
 export const verificarLimiteAula = async (userId, schoolId) => {
   const [plano, uso] = await Promise.all([
-    getPlano(userId),
+    getPlano(userId, schoolId),
     getUsoMensal(userId, schoolId)
   ]);
 
@@ -79,7 +79,7 @@ export const verificarLimiteAula = async (userId, schoolId) => {
 // Verifica se o usuário pode gerar um relatório
 export const verificarLimiteRelatorio = async (userId, schoolId) => {
   const [plano, uso] = await Promise.all([
-    getPlano(userId),
+    getPlano(userId, schoolId),
     getUsoMensal(userId, schoolId)
   ]);
 

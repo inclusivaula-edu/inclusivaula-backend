@@ -1,12 +1,13 @@
 import express from "express";
 import { supabase } from "../config/supabase.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { roleMiddleware } from "../middlewares/role.middleware.js";
+import { requireRole } from "../middlewares/role.middleware.js";
+import { secureMiddleware } from "../middlewares/secure.middleware.js";
 
 const router = express.Router();
 
-// Lista os audit_logs da escola do usuário (só admin/coord)
-router.get("/audit-logs", authMiddleware, roleMiddleware("school_admin", "coordinator"), async (req, res) => {
+// Lista os audit_logs da escola do usuário (diretor+)
+router.get("/audit-logs", authMiddleware, secureMiddleware, requireRole("diretor"), async (req, res) => {
   try {
     const { action, status, limit = 100 } = req.query;
     let q = supabase
@@ -27,13 +28,14 @@ router.get("/audit-logs", authMiddleware, roleMiddleware("school_admin", "coordi
   }
 });
 
-// Lista alertas de segurança (só admin)
-router.get("/security-alerts", authMiddleware, roleMiddleware("school_admin"), async (req, res) => {
+// Lista alertas de segurança da escola do usuário (diretor+)
+router.get("/security-alerts", authMiddleware, secureMiddleware, requireRole("diretor"), async (req, res) => {
   try {
     const { resolved, severity, limit = 50 } = req.query;
     let q = supabase
       .from("security_alerts")
       .select("*")
+      .or(`school_id.eq.${req.schoolId},school_id.is.null`)
       .order("created_at", { ascending: false })
       .limit(Math.min(Number(limit), 200));
 
@@ -49,8 +51,8 @@ router.get("/security-alerts", authMiddleware, roleMiddleware("school_admin"), a
   }
 });
 
-// Executa watchdog manualmente (só admin)
-router.post("/security-watchdog", authMiddleware, roleMiddleware("school_admin"), async (req, res) => {
+// Executa watchdog manualmente (diretor+)
+router.post("/security-watchdog", authMiddleware, secureMiddleware, requireRole("diretor"), async (req, res) => {
   try {
     const { data, error } = await supabase.rpc("fn_security_watchdog");
     if (error) throw error;
@@ -60,13 +62,14 @@ router.post("/security-watchdog", authMiddleware, roleMiddleware("school_admin")
   }
 });
 
-// Resolver alerta (só admin)
-router.patch("/security-alerts/:id/resolve", authMiddleware, roleMiddleware("school_admin"), async (req, res) => {
+// Resolver alerta da própria escola (diretor+)
+router.patch("/security-alerts/:id/resolve", authMiddleware, secureMiddleware, requireRole("diretor"), async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("security_alerts")
       .update({ resolved: true, resolved_at: new Date().toISOString(), resolved_by: req.user.id })
       .eq("id", req.params.id)
+      .or(`school_id.eq.${req.schoolId},school_id.is.null`)
       .select()
       .single();
 

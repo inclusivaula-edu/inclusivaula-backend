@@ -15,7 +15,8 @@ const RESOURCE_TABLES = {
   aee: "aee_documents",
   aee_session: "aee_sessions",
   activity: "activities",
-  assessment: "assessments"
+  assessment: "assessments",
+  disability: "student_disabilities"
 };
 
 /**

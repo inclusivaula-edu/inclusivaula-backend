@@ -30,9 +30,12 @@ export const generateReportController = async (req, res) => {
     return res.json({ success: true, data: result });
   } catch (error) {
     console.error("❌ generateReport:", error.message);
-    // Retorna 403 se for erro de limite
-    const status = error.message.includes("Limite") ? 403 : 500;
-    return res.status(status).json({ success: false, error: internalError(error) });
+    // Erros de limite são mensagens seguras para o usuário; o resto é mascarado
+    const isLimite = error.message.includes("Limite");
+    return res.status(isLimite ? 403 : 500).json({
+      success: false,
+      error: isLimite ? error.message : internalError(error)
+    });
   }
 };
 
