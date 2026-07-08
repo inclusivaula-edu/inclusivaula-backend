@@ -47,4 +47,9 @@ app.listen(PORT, () => {
   import("./services/job-recovery.service.js")
     .then(({ recoverOrphanJobs }) => recoverOrphanJobs())
     .catch(err => console.error("Job recovery import error:", err.message));
+
+  // Lembretes de agenda por e-mail
+  import("./services/reminder.service.js")
+    .then(({ iniciarLembretes }) => iniciarLembretes())
+    .catch(err => console.error("Reminder service import error:", err.message));
 });
