@@ -3,6 +3,8 @@ import { processLessonJob } from "./lesson.service.js";
 import { processSimuladoJob } from "./simulado.service.js";
 import { runNexus7PEI } from "../nexus7/nexus7-pei.js";
 import { runNexus7AEE } from "../nexus7/nexus7-aee.js";
+import { runNexus7PDI } from "../nexus7/nexus7-pdi.js";
+import { runNexus7EstudoCaso } from "../nexus7/nexus7-estudo-caso.js";
 
 const LIMITE_POR_TIPO = 10;
 
@@ -17,7 +19,8 @@ export async function recoverOrphanJobs() {
       recoverLessons(),
       recoverSimulados(),
       recoverDocumentos("pei_documents", runNexus7PEI, "PEI"),
-      recoverDocumentos("aee_documents", runNexus7AEE, "AEE")
+      recoverDocumentos("aee_documents", runNexus7AEE, "AEE"),
+      recoverDocumentos("case_studies", runNexus7EstudoCaso, "EstudoDeCaso")
     ]);
   } catch (err) {
     console.error("Job recovery error:", err.message);
@@ -52,14 +55,18 @@ async function recoverSimulados() {
 
 // PEI e AEE não guardam o input completo — reconstruímos a partir da linha + aluno
 async function recoverDocumentos(tabela, runAgent, label) {
+  const colunas = tabela === "pei_documents"
+    ? "id, student_id, periodo, user_id, doc_type"
+    : "id, student_id, periodo, user_id";
   const { data } = await supabase
-    .from(tabela).select("id, student_id, periodo, user_id")
+    .from(tabela).select(colunas)
     .eq("status", "processing")
     .limit(LIMITE_POR_TIPO);
 
   for (const job of data || []) {
-    console.log(`♻️ Recuperando ${label} órfão ${job.id}`);
-    reprocessarDocumento(tabela, runAgent, label, job);
+    const agente = job.doc_type === "pdi" ? runNexus7PDI : runAgent;
+    console.log(`♻️ Recuperando ${label}${job.doc_type === "pdi" ? "/PDI" : ""} órfão ${job.id}`);
+    reprocessarDocumento(tabela, agente, label, job);
   }
 }
 

@@ -847,3 +847,135 @@ export const generatePEIPDF = async (docData, res) => {
 
   await enviarPDF(doc, res, nomeArquivo);
 };
+
+// ─────────────────────────────────────────────────────────────────
+// GERAR PDF DE PDI (Plano de Desenvolvimento Individual)
+// ─────────────────────────────────────────────────────────────────
+export const generatePDIPDF = async (docData, res) => {
+  const pdi = docData.result || {};
+  const student = docData.student || {};
+  const nomeArquivo = `pdi-${(student.full_name || "aluno").replace(/ /g, "-")}.pdf`;
+  const doc = criarDoc();
+
+  const nomeAluno = pdi.identificacao?.nome_aluno || student.full_name || "—";
+  let y = desenharCabecalho(doc, "PDI — Plano de Desenvolvimento Individual",
+    `Aluno: ${nomeAluno}  |  Período: ${docData.periodo || "—"}`);
+
+  y = await desenharEscola(doc, docData.escola, y);
+
+  doc.rect(50, y, doc.page.width - 100, 60).fillAndStroke("#f5f9ff", CORES.bordaClara);
+  doc.fontSize(11).fillColor(CORES.azul).font("Helvetica-Bold").text("Identificação", 60, y + 8);
+  doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica")
+    .text(`Aluno: ${nomeAluno}   |   Série: ${pdi.identificacao?.serie || student.grade || "—"}`, 60, y + 22);
+  doc.text(`NEE: ${pdi.identificacao?.deficiencia_nee || student.disability_type || "—"}   |   Período: ${pdi.identificacao?.periodo || docData.periodo || "—"}`, 60, y + 36);
+  y += 74;
+
+  if (pdi.perfil_desenvolvimento?.nivel_atual)
+    y = desenharSecao(doc, "Perfil de Desenvolvimento", pdi.perfil_desenvolvimento.nivel_atual, CORES.azul, y);
+  if (pdi.perfil_desenvolvimento?.potencialidades?.length)
+    y = desenharLista(doc, "Potencialidades", pdi.perfil_desenvolvimento.potencialidades, CORES.verde, y);
+  if (pdi.perfil_desenvolvimento?.necessidades?.length)
+    y = desenharLista(doc, "Necessidades", pdi.perfil_desenvolvimento.necessidades, CORES.amarelo, y);
+
+  for (const dim of pdi.dimensoes_desenvolvimento || []) {
+    const corpo = [
+      dim.situacao_atual ? `Situação atual: ${dim.situacao_atual}` : "",
+      dim.meta_periodo ? `Meta do período: ${dim.meta_periodo}` : "",
+      dim.responsavel ? `Responsável: ${dim.responsavel}` : ""
+    ].filter(Boolean).join("\n");
+    y = desenharSecao(doc, `Dimensão: ${dim.dimensao || "—"}`, corpo, CORES.roxo, y);
+    if (dim.marcos_verificaveis?.length)
+      y = desenharLista(doc, "Marcos verificáveis", dim.marcos_verificaveis, CORES.azul, y);
+    if (dim.estrategias?.length)
+      y = desenharLista(doc, "Estratégias", dim.estrategias, CORES.verde, y);
+  }
+
+  if (pdi.recursos_apoios?.length)
+    y = desenharLista(doc, "Recursos e Apoios", pdi.recursos_apoios, CORES.azul, y);
+
+  if (pdi.tecnologia_assistiva?.length) {
+    const itens = pdi.tecnologia_assistiva.map(ta =>
+      typeof ta === "string" ? ta : `${ta.recurso}: ${ta.finalidade || ""} (${ta.como_obter || ""})`);
+    y = desenharLista(doc, "Tecnologia Assistiva", itens, CORES.roxo, y);
+  }
+
+  if (pdi.avaliacao_progresso?.instrumentos?.length)
+    y = desenharLista(doc, "Avaliação do Progresso", pdi.avaliacao_progresso.instrumentos, CORES.cinza, y);
+  if (pdi.participacao_familia?.length)
+    y = desenharLista(doc, "Participação da Família", pdi.participacao_familia, CORES.verde, y);
+  if (pdi.base_legal)
+    desenharSecao(doc, "Base Legal", pdi.base_legal, CORES.cinza, y);
+
+  await enviarPDF(doc, res, nomeArquivo);
+};
+
+// ─────────────────────────────────────────────────────────────────
+// GERAR PDF DE ESTUDO DE CASO (Portaria MEC 421/2026)
+// ─────────────────────────────────────────────────────────────────
+export const generateEstudoCasoPDF = async (docData, res) => {
+  const ec = docData.result || {};
+  const student = docData.student || {};
+  const nomeArquivo = `estudo-de-caso-${(student.full_name || "aluno").replace(/ /g, "-")}.pdf`;
+  const doc = criarDoc();
+
+  const nomeAluno = ec.identificacao?.nome_aluno || student.full_name || "—";
+  let y = desenharCabecalho(doc, "Estudo de Caso — Avaliação Biopsicossocial",
+    `Aluno: ${nomeAluno}  |  Período: ${docData.periodo || "—"}`);
+
+  y = await desenharEscola(doc, docData.escola, y);
+
+  doc.rect(50, y, doc.page.width - 100, 60).fillAndStroke("#f5f9ff", CORES.bordaClara);
+  doc.fontSize(11).fillColor(CORES.azul).font("Helvetica-Bold").text("Identificação", 60, y + 8);
+  doc.fontSize(10).fillColor(CORES.cinza).font("Helvetica")
+    .text(`Aluno: ${nomeAluno}   |   Série: ${ec.identificacao?.serie || student.grade || "—"}`, 60, y + 22);
+  doc.text(`Professor: ${ec.identificacao?.professor || "—"}   |   Data: ${ec.identificacao?.data_elaboracao || "—"}`, 60, y + 36);
+  y += 74;
+
+  const ctx = ec.contexto_biopsicossocial || {};
+  if (ctx.dimensao_biologica) y = desenharSecao(doc, "Dimensão Biológica", ctx.dimensao_biologica, CORES.azul, y);
+  if (ctx.dimensao_psicologica) y = desenharSecao(doc, "Dimensão Psicológica", ctx.dimensao_psicologica, CORES.roxo, y);
+  if (ctx.dimensao_social) y = desenharSecao(doc, "Dimensão Social", ctx.dimensao_social, CORES.verde, y);
+
+  const barreiras = ec.barreiras_identificadas || {};
+  const rotulos = {
+    pedagogicas: "Barreiras Pedagógicas", comunicacionais: "Barreiras Comunicacionais",
+    atitudinais: "Barreiras Atitudinais", fisicas_arquitetonicas: "Barreiras Físicas/Arquitetônicas",
+    tecnologicas: "Barreiras Tecnológicas"
+  };
+  for (const [chave, rotulo] of Object.entries(rotulos)) {
+    if (barreiras[chave]?.length) y = desenharLista(doc, rotulo, barreiras[chave], CORES.amarelo, y);
+  }
+
+  if (ec.potencialidades?.length)
+    y = desenharLista(doc, "Potencialidades", ec.potencialidades, CORES.verde, y);
+
+  if (ec.necessidades_de_apoio?.length) {
+    const itens = ec.necessidades_de_apoio.map(n =>
+      typeof n === "string" ? n : `${n.area}: ${n.apoio} (${n.intensidade || "—"})`);
+    y = desenharLista(doc, "Necessidades de Apoio", itens, CORES.azul, y);
+  }
+
+  if (ec.historico_escolar_resumido)
+    y = desenharSecao(doc, "Histórico Escolar", ec.historico_escolar_resumido, CORES.cinza, y);
+
+  if (ec.encaminhamentos?.length) {
+    const itens = ec.encaminhamentos.map(e =>
+      typeof e === "string" ? e : `${e.profissional_ou_servico}: ${e.motivo} (${e.carater || ""})`);
+    y = desenharLista(doc, "Encaminhamentos Sugeridos", itens, CORES.roxo, y);
+  }
+
+  const rec = ec.recomendacoes || {};
+  if (rec.justificativa) {
+    const resumo = `PEI: ${rec.elaborar_pei ? "recomendado" : "não indicado"}  |  PAEE: ${rec.elaborar_paee ? "recomendado" : "não indicado"}\n\n${rec.justificativa}`;
+    y = desenharSecao(doc, "Recomendações", resumo, CORES.azul, y);
+  }
+  if (rec.apoios_prioritarios?.length)
+    y = desenharLista(doc, "Apoios Prioritários", rec.apoios_prioritarios, CORES.verde, y);
+  if (rec.tecnologia_assistiva_sugerida?.length)
+    y = desenharLista(doc, "Tecnologia Assistiva Sugerida", rec.tecnologia_assistiva_sugerida, CORES.roxo, y);
+
+  if (ec.base_legal)
+    desenharSecao(doc, "Base Legal", ec.base_legal, CORES.cinza, y);
+
+  await enviarPDF(doc, res, nomeArquivo);
+};

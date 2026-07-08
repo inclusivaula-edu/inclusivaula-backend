@@ -1,9 +1,10 @@
 import { runNexus7PEI } from "../nexus7/nexus7-pei.js";
+import { runNexus7PDI } from "../nexus7/nexus7-pdi.js";
 import { runNexus7AEE } from "../nexus7/nexus7-aee.js";
 import { supabase } from "../config/supabase.js";
 import { internalError, sanitizeForPrompt } from "../utils/sanitize.js";
 import { v4 as uuidv4 } from "uuid";
-import { generatePEIPDF, generateAEEPDF } from "../services/pdf.service.js";
+import { generatePEIPDF, generateAEEPDF, generatePDIPDF } from "../services/pdf.service.js";
 
 export const generatePEI = async (req, res) => {
   try {
@@ -99,7 +100,7 @@ export const listPEIs = async (req, res) => {
     const { student_id } = req.query;
     let query = supabase
       .from("pei_documents")
-      .select("id, student_id, periodo, status, created_at")
+      .select("id, student_id, periodo, status, doc_type, aprovado, created_at")
       .order("created_at", { ascending: false })
       .limit(50);
 
@@ -154,7 +155,8 @@ export const getPEIPDF = async (req, res) => {
       ? await supabase.from("schools").select("id, name, city, state, address, phone, inep_code, cnpj, logo_url").eq("id", student.school_id).single()
       : { data: null };
 
-    await generatePEIPDF({ result: data.result, student: student || {}, escola, periodo: data.periodo }, res);
+    const render = data.doc_type === "pdi" ? generatePDIPDF : generatePEIPDF;
+    await render({ result: data.result, student: student || {}, escola, periodo: data.periodo }, res);
   } catch (error) {
     console.error("getPEIPDF:", error.message);
     if (!res.headersSent) return res.status(500).json({ success: false, error: internalError(error) });
@@ -312,6 +314,70 @@ export const listAEEs = async (req, res) => {
     return res.json({ success: true, data: data || [] });
   } catch (error) {
     console.error("listAEEs:", error.message);
+    return res.status(500).json({ success: false, error: internalError(error) });
+  }
+};
+
+
+// PDI — Plano de Desenvolvimento Individual (mesmo fluxo do PEI, doc_type "pdi")
+export const generatePDI = async (req, res) => {
+  try {
+    const { student_id, periodo, escola } = req.body;
+
+    if (!student_id || typeof student_id !== "string") {
+      return res.status(400).json({ success: false, error: "Campo 'student_id' é obrigatório" });
+    }
+    if (!periodo || typeof periodo !== "string" || periodo.length > 100) {
+      return res.status(400).json({ success: false, error: "Campo 'periodo' é obrigatório (ex: '1º Semestre 2026')" });
+    }
+
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("full_name, grade, disability_type, notes, guardian_name, school_id")
+      .eq("id", student_id)
+      .single();
+
+    if (studentError || !student) {
+      return res.status(404).json({ success: false, error: "Aluno não encontrado" });
+    }
+    if (student.school_id && req.schoolId && student.school_id !== req.schoolId) {
+      return res.status(403).json({ success: false, error: "Acesso negado: aluno de outra escola" });
+    }
+
+    const id = uuidv4();
+    const input = {
+      student,
+      periodo: sanitizeForPrompt(periodo),
+      escola: sanitizeForPrompt(escola || ""),
+      teacher: req.profile?.full_name || ""
+    };
+
+    const { error: insertError } = await supabase.from("pei_documents").insert([{
+      id, student_id, user_id: req.user.id, school_id: req.schoolId,
+      periodo, status: "processing", result: null, doc_type: "pdi"
+    }]);
+    if (insertError) {
+      console.error("ERRO AO INSERIR PDI:", insertError.message);
+      return res.status(500).json({ success: false, error: internalError(insertError) });
+    }
+
+    setTimeout(async () => {
+      try {
+        const result = await runNexus7PDI(input);
+        await supabase.from("pei_documents")
+          .update({ status: "completed", result })
+          .eq("id", id);
+      } catch (err) {
+        console.error("ERRO PDI JOB:", err.message);
+        await supabase.from("pei_documents")
+          .update({ status: "error", result: { error: "Falha ao gerar PDI" } })
+          .eq("id", id);
+      }
+    }, 0);
+
+    return res.json({ success: true, message: "PDI enviado para processamento", jobId: id });
+  } catch (error) {
+    console.error("generatePDI:", error.message);
     return res.status(500).json({ success: false, error: internalError(error) });
   }
 };
