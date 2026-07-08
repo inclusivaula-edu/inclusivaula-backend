@@ -1,6 +1,7 @@
 import { supabase } from "../config/supabase.js";
 import { internalError, sanitizeForPrompt } from "../utils/sanitize.js";
 import { generateFrequenciaAEEPDF } from "../services/pdf.service.js";
+import { runNexus7Evolucao } from "../nexus7/nexus7-evolucao.js";
 
 export const listSessions = async (req, res) => {
   try {
@@ -120,5 +121,57 @@ export const getFrequencyPDF = async (req, res) => {
   } catch (error) {
     console.error("getFrequencyPDF:", error.message);
     if (!res.headersSent) return res.status(500).json({ success: false, error: internalError(error) });
+  }
+};
+
+
+// Relatório de Evolução AEE com IA — compila os registros das sessões do período
+export const generateEvolutionReport = async (req, res) => {
+  try {
+    const { student_id, periodo } = req.body;
+    if (!student_id) return res.status(400).json({ success: false, error: "student_id é obrigatório" });
+
+    const { data: student } = await supabase.from("students")
+      .select("id, full_name, grade, disability_type, school_id")
+      .eq("id", student_id).single();
+    if (!student) return res.status(404).json({ success: false, error: "Aluno não encontrado" });
+    if (student.school_id && req.schoolId && student.school_id !== req.schoolId) {
+      return res.status(403).json({ success: false, error: "Acesso negado: aluno de outra escola" });
+    }
+
+    let query = supabase.from("aee_sessions").select("*")
+      .eq("student_id", student_id)
+      .order("data_sessao", { ascending: true })
+      .limit(100);
+    if (periodo)      query = query.eq("periodo", periodo);
+    if (req.schoolId) query = query.eq("school_id", req.schoolId);
+
+    const { data: sessoes, error } = await query;
+    if (error) throw new Error(error.message);
+
+    if (!sessoes || sessoes.length < 2) {
+      return res.status(422).json({
+        success: false,
+        error: "Registre pelo menos 2 sessões deste aluno no período para gerar o relatório de evolução."
+      });
+    }
+
+    const result = await runNexus7Evolucao({ student, sessoes, periodo });
+
+    // Salva no histórico de relatórios do aluno
+    const { data: saved } = await supabase.from("reports").insert([{
+      student_id,
+      school_id: req.schoolId,
+      generated_by: req.user.id,
+      teacher_id: req.user.id,
+      report_type: "evolucao_aee",
+      period: periodo || null,
+      content: result
+    }]).select("id").single();
+
+    return res.json({ success: true, reportId: saved?.id || null, data: result });
+  } catch (error) {
+    console.error("generateEvolutionReport:", error.message);
+    return res.status(500).json({ success: false, error: internalError(error) });
   }
 };

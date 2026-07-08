@@ -93,6 +93,9 @@ app.use("/api/exercises/rubrica", aiLimiter);
 app.use("/api/pei/generate", aiLimiter);
 app.use("/api/aee/generate", aiLimiter);
 app.use("/api/simulado/generate", aiLimiter);
+app.use("/api/aee-sessions/evolution-report", aiLimiter);
+app.use("/api/estudo-caso/generate", aiLimiter);
+app.use("/api/pdi/generate", aiLimiter);
 
 app.use(express.json({ limit: "200kb" }));
 
