@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { sanitizeForPrompt } from "../utils/sanitize.js";
+import { STUDENT_TOKEN, unmaskResult } from "./pseudonym.js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -26,7 +27,7 @@ export const runNexus7Simulado = async (input) => {
     if (student.observable_behavior) partes.push(`O que faz diferente da turma: "${sanitizeForPrompt(student.observable_behavior)}"`);
     if (student.what_helps) partes.push(`O que já funciona com ele: "${sanitizeForPrompt(student.what_helps)}"`);
     if (student.disability_type) partes.push(`Perfil NEE: ${sanitizeForPrompt(student.disability_type)}`);
-    if (student.full_name) partes.push(`Nome: ${sanitizeForPrompt(student.full_name)}`);
+    if (student.full_name) partes.push(`Nome: ${STUDENT_TOKEN}`);
     perfilContexto = partes.length
       ? `\nALUNO COM NEE — GERAR VERSÃO ADAPTADA:\n${partes.join("\n")}\n\nAdaptações obrigatórias:\n- Enunciados mais curtos e diretos\n- Evitar textos longos nos enunciados\n- Opções de múltipla escolha em negrito e bem separadas\n- Reduzir complexidade sem reduzir o conteúdo avaliado\n- Para TEA: questões objetivas preferencialmente, evitar ambiguidade\n- Para TDAH: questões curtas, uma ação por vez\n- Para Dislexia: fonte grande implícita, enunciados de 1-2 linhas\n- Para DI: vocabulário simplificado, apoio visual descrito\n`
       : "";
@@ -157,5 +158,5 @@ Retorna sempre JSON válido sem markdown, sem texto fora do JSON.`
     }
   });
 
-  return gerado;
+  return unmaskResult(gerado, student?.full_name);
 };

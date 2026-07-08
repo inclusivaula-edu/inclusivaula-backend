@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { sanitizeForPrompt } from "../utils/sanitize.js";
+import { STUDENT_TOKEN, unmaskResult } from "./pseudonym.js";
 import { getRAGContext } from "./rag.service.js";
 import { getStudentMemory } from "./memory.service.js";
 import { reviewOutput } from "./review.service.js";
@@ -232,7 +233,7 @@ export const runNexus7 = async (input) => {
 
         return `
 PERFIL ESPECÍFICO DO ALUNO:
-- Nome: ${sanitizeForPrompt(s.full_name)}
+- Nome: ${STUDENT_TOKEN}
 - Série: ${sanitizeForPrompt(s.grade)}
 ${comportamento ? `
 O QUE ESSE ALUNO FAZ DIFERENTE DA TURMA (comportamento observável pelo professor):
@@ -397,5 +398,6 @@ exatamente como aparecem no contexto recuperado.`
     deficiencia
   });
 
-  return resultado;
+  // Reinsere o nome real do aluno somente após todas as chamadas externas
+  return unmaskResult(resultado, input.student?.full_name);
 };

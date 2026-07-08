@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { sanitizeForPrompt } from "../utils/sanitize.js";
+import { STUDENT_TOKEN, unmaskResult } from "./pseudonym.js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -18,7 +19,7 @@ export const runNexus7Exercises = async ({ lesson, student, quantidade = 5, pont
   const qtd = Math.min(Math.max(Number(quantidade) || 5, 1), 20);
 
   const perfilAluno = student
-    ? `Aluno: ${sanitizeForPrompt(student.full_name)}, Série: ${sanitizeForPrompt(student.grade)}, NEE: ${sanitizeForPrompt(student.disability_type || "Não especificada")}, Observações: ${sanitizeForPrompt(student.notes || "Nenhuma")}`
+    ? `Aluno: ${STUDENT_TOKEN}, Série: ${sanitizeForPrompt(student.grade)}, NEE: ${sanitizeForPrompt(student.disability_type || "Não especificada")}, Observações: ${sanitizeForPrompt(student.notes || "Nenhuma")}`
     : `Perfil geral — NEE: ${sanitizeForPrompt(lesson.input?.deficiencia || "Geral")}, Série: ${sanitizeForPrompt(lesson.input?.serie || "Não especificada")}`;
 
   const deficiencia = student?.disability_type || lesson.input?.deficiencia || "Geral";
@@ -114,7 +115,7 @@ Retorne sempre JSON válido sem markdown.`
     const clean = content.replace(/```json|```/g, "").trim();
 
     try {
-      return JSON.parse(clean);
+      return unmaskResult(JSON.parse(clean), student?.full_name);
     } catch {
       throw new Error("A IA retornou uma resposta inválida. Tente novamente.");
     }

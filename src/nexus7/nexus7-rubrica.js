@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { sanitizeForPrompt } from "../utils/sanitize.js";
+import { STUDENT_TOKEN, unmaskResult } from "./pseudonym.js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -20,7 +21,7 @@ async function chamadaComRetry(fn, tentativas = 3) {
  */
 export const runNexus7Rubrica = async ({ lesson, student }) => {
   const perfilAluno = student
-    ? `Aluno: ${sanitizeForPrompt(student.full_name)}, Série: ${sanitizeForPrompt(student.grade)}, NEE: ${sanitizeForPrompt(student.disability_type || "Não especificada")}, Observações: ${sanitizeForPrompt(student.notes || "Nenhuma")}`
+    ? `Aluno: ${STUDENT_TOKEN}, Série: ${sanitizeForPrompt(student.grade)}, NEE: ${sanitizeForPrompt(student.disability_type || "Não especificada")}, Observações: ${sanitizeForPrompt(student.notes || "Nenhuma")}`
     : `Perfil geral — NEE: ${sanitizeForPrompt(lesson.input?.deficiencia || "Geral")}, Série: ${sanitizeForPrompt(lesson.input?.serie || "Não especificada")}`;
 
   const conteudoAula = lesson.result
@@ -129,7 +130,7 @@ nunca em inglês. Retorne sempre JSON válido.`
     const clean = content.replace(/```json|```/g, "").trim();
 
     try {
-      return JSON.parse(clean);
+      return unmaskResult(JSON.parse(clean), student?.full_name);
     } catch {
       throw new Error("A IA retornou uma resposta inválida para a rubrica. Tente novamente.");
     }

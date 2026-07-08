@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { sanitizeForPrompt } from "../utils/sanitize.js";
+import { STUDENT_TOKEN, unmaskResult } from "./pseudonym.js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -24,7 +25,7 @@ async function chamadaComRetry(fn, tentativas = 3) {
  * @param {string} [input.escola]  - Nome da escola
  */
 export const runNexus7AEE = async (input) => {
-  const nomeAluno   = sanitizeForPrompt(input.student?.full_name       || "Não informado");
+  const nomeAluno   = input.student?.full_name ? STUDENT_TOKEN : "Não informado";
   const serie       = sanitizeForPrompt(input.student?.grade           || "Não informada");
   const deficiencia = sanitizeForPrompt(input.student?.disability_type || "Não especificada");
   const observacoes = sanitizeForPrompt(input.student?.notes           || "Sem observações");
@@ -166,7 +167,7 @@ válido sem markdown.`
     const clean = content.replace(/```json|```/g, "").trim();
 
     try {
-      return JSON.parse(clean);
+      return unmaskResult(JSON.parse(clean), input.student?.full_name);
     } catch {
       throw new Error("A IA retornou uma resposta inválida para o AEE. Tente novamente.");
     }
