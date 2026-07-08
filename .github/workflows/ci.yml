@@ -1,4 +1,4 @@
-name: CI — lint + audit + build
+name: CI — testes + audit + build
 
 on:
   push:
@@ -25,6 +25,9 @@ jobs:
 
       - name: Audit (alta severidade falha o build)
         run: npm audit --audit-level=high --omit=dev
+
+      - name: Testes unitários
+        run: npm test
 
       - name: Syntax check (todos os arquivos JS)
         run: |
