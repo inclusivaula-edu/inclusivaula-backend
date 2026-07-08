@@ -14,7 +14,9 @@ export const AUDIT_ACTIONS = {
   PEI_APPROVE: "pei.approve",
   AEE_APPROVE: "aee.approve",
   ACCESS_DENIED: "access.denied",
-  TENANT_VIOLATION: "tenant.violation"
+  TENANT_VIOLATION: "tenant.violation",
+  DATA_EXPORT: "lgpd.data_export",
+  ACCOUNT_DELETE: "lgpd.account_delete"
 };
 
 export async function audit({ req, action, resourceType = null, resourceId = null, status = "success", metadata = {} }) {
