@@ -5,7 +5,7 @@ export const generatePredictions = async (schoolId) => {
 
   const { data: students } = await supabase
     .from("students")
-    .select("id, name")
+    .select("id, full_name")
     .eq("school_id", schoolId);
 
   const studentIds = (students || []).map(s => s.id);
@@ -27,7 +27,7 @@ export const generatePredictions = async (schoolId) => {
     if (averageScore < 4) prediction = "Risco elevado de dificuldade contínua.";
 
     predictions.push({
-      student: student.name,
+      student: student.full_name,
       averageScore: averageScore.toFixed(1),
       prediction
     });

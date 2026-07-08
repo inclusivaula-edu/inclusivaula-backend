@@ -5,7 +5,7 @@ export const generateAlerts = async (schoolId) => {
 
   const { data: students } = await supabase
     .from("students")
-    .select("id, name")
+    .select("id, full_name")
     .eq("school_id", schoolId);
 
   const studentIds = (students || []).map(s => s.id);
@@ -28,7 +28,7 @@ export const generateAlerts = async (schoolId) => {
     if (attendanceRate < 75) {
       alerts.push({
         type: "low_attendance",
-        student: student.name,
+        student: student.full_name,
         message: "Aluno com frequência abaixo do recomendado.",
         value: attendanceRate.toFixed(0) + "%"
       });
@@ -43,7 +43,7 @@ export const generateAlerts = async (schoolId) => {
     if (averageScore < 6) {
       alerts.push({
         type: "low_performance",
-        student: student.name,
+        student: student.full_name,
         message: "Aluno com desempenho abaixo da média.",
         value: averageScore.toFixed(1)
       });
@@ -52,7 +52,7 @@ export const generateAlerts = async (schoolId) => {
     if (attendanceRate < 75 && averageScore < 6) {
       alerts.push({
         type: "pedagogical_risk",
-        student: student.name,
+        student: student.full_name,
         message: "Aluno apresenta risco pedagógico e necessita intervenção.",
         value: "ALTO"
       });

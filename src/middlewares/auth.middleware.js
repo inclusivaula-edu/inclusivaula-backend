@@ -31,7 +31,7 @@ export const authMiddleware = async (req, res, next) => {
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("id, role, cargo, school_id, full_name, email")
+      .select("id, role, cargo, school_id, network_id, full_name, email")
       .eq("id", userData.user.id)
       .single();
 

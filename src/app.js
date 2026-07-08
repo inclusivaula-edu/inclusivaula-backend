@@ -33,6 +33,7 @@ import aeeSessionsRoutes from "./routes/aee-sessions.routes.js";
 import auditRoutes from "./routes/audit.routes.js";
 import simuladoRoutes from "./routes/simulado.routes.js";
 import lgpdRoutes from "./routes/lgpd.routes.js";
+import managementRoutes from "./routes/management.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -165,6 +166,7 @@ app.use("/api", aeeSessionsRoutes);
 app.use("/api", auditRoutes);
 app.use("/api", simuladoRoutes);
 app.use("/api", lgpdRoutes);
+app.use("/api", managementRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
