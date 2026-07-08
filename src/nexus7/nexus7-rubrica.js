@@ -115,12 +115,14 @@ Retorne APENAS JSON válido, sem markdown, sem texto fora do JSON.
           role: "system",
           content: `Você é especialista em avaliação inclusiva brasileira, DUA/CAST, BNCC
 e legislação educacional. Cria rubricas de avaliação adaptadas e juridicamente
-fundamentadas. Retorne sempre JSON válido.`
+fundamentadas. TODO o conteúdo DEVE ser escrito em PORTUGUÊS BRASILEIRO —
+nunca em inglês. Retorne sempre JSON válido.`
         },
         { role: "user", content: prompt }
       ],
       temperature: 0.3,
-      max_tokens: 4096
+      max_tokens: 4096,
+      response_format: { type: "json_object" }
     });
 
     const content = response.choices[0].message.content.trim();

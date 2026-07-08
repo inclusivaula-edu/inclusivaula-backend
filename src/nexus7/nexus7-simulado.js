@@ -137,12 +137,14 @@ Para verdadeiro_falso, omita "alternativas" e use "resposta_correta" com "V" ou 
           content: `Você é um professor experiente em educação inclusiva brasileira.
 Cria simulados avaliativos baseados no conteúdo real ensinado em sala.
 Calibra dificuldade e linguagem para a série. Referencia BNCC.
+TODO o conteúdo DEVE ser escrito em PORTUGUÊS BRASILEIRO — nunca em inglês.
 Retorna sempre JSON válido sem markdown, sem texto fora do JSON.`
         },
         { role: "user", content: prompt }
       ],
       temperature: 0.5,
-      max_tokens: 8000
+      max_tokens: 8000,
+      response_format: { type: "json_object" }
     });
 
     const content = response.choices[0].message.content.trim();

@@ -347,9 +347,10 @@ explicações fora do JSON. Seja rico e detalhado em cada campo.
 }
 `;
 
+  const inicio = Date.now();
   const gerado = await chamadaComRetry(async () => {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -357,7 +358,8 @@ explicações fora do JSON. Seja rico e detalhado em cada campo.
 conhecimento da BNCC, LDB, Lei Brasileira de Inclusão (13.146/2015), DSM-5,
 CID-11 e das principais teorias pedagógicas (Vygotsky, Gardner, DUA/CAST).
 Você cria planos de aula pedagogicamente sólidos, legalmente fundamentados
-e efetivamente inclusivos. Retorne sempre JSON válido sem markdown, sem
+e efetivamente inclusivos. TODO o conteúdo DEVE ser escrito em PORTUGUÊS
+BRASILEIRO — nunca em inglês. Retorne sempre JSON válido sem markdown, sem
 texto fora do JSON. Use APENAS códigos BNCC reais e verificáveis.
 Se um contexto RAG foi fornecido, use os códigos BNCC e artigos de lei
 exatamente como aparecem no contexto recuperado.`
@@ -365,8 +367,17 @@ exatamente como aparecem no contexto recuperado.`
         { role: "user", content: prompt }
       ],
       temperature: 0.4,
-      max_tokens: 8192
+      max_tokens: 8192,
+      response_format: { type: "json_object" }
     });
+
+    if (response.usage) {
+      console.log(JSON.stringify({
+        agent: "nexus7-lesson", ms: Date.now() - inicio,
+        prompt_tokens: response.usage.prompt_tokens,
+        completion_tokens: response.usage.completion_tokens
+      }));
+    }
 
     const content = response.choices[0].message.content.trim();
     const clean = content.replace(/```json|```/g, "").trim();

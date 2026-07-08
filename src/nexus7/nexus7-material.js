@@ -174,7 +174,7 @@ Para atividades que não são múltipla escolha, omita o campo "opcoes".
 
   const gerado = await chamadaComRetry(async () => {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -183,13 +183,15 @@ Sua principal função é ENSINAR O CONTEÚDO — não apenas descrever atividad
 O roteiro que você gera deve conter fatos, conceitos, definições, exemplos, datas, fórmulas
 e explicações completas que o professor possa usar diretamente para ensinar.
 NUNCA gere frases vagas como "discutam as causas" sem listar e explicar QUAIS são as causas.
+TODO o conteúdo DEVE ser escrito em PORTUGUÊS BRASILEIRO — nunca em inglês.
 Calibra linguagem e complexidade para a série e o perfil de NEE do aluno.
 Retorna sempre JSON válido sem markdown, sem texto fora do JSON.`
         },
         { role: "user", content: prompt }
       ],
       temperature: 0.6,
-      max_tokens: 8000
+      max_tokens: 8000,
+      response_format: { type: "json_object" }
     });
 
     const content = response.choices[0].message.content.trim();

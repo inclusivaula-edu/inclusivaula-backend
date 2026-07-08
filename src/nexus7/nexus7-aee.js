@@ -151,13 +151,15 @@ Retorne APENAS um JSON válido, sem texto adicional, sem markdown.
           content: `Você é um especialista em AEE (Atendimento Educacional Especializado)
 com profundo conhecimento do Decreto 7.611/2011, Res. CNE/CEB 4/2009,
 LDB 9.394/1996, Lei 13.146/2015 e Tecnologia Assistiva. Você elabora
-planos de AEE completos e tecnicamente corretos. Retorne sempre JSON
+planos de AEE completos e tecnicamente corretos. TODO o conteúdo DEVE ser
+escrito em PORTUGUÊS BRASILEIRO — nunca em inglês. Retorne sempre JSON
 válido sem markdown.`
         },
         { role: "user", content: prompt }
       ],
       temperature: 0.3,
-      max_tokens: 4096
+      max_tokens: 4096,
+      response_format: { type: "json_object" }
     });
 
     const content = response.choices[0].message.content.trim();

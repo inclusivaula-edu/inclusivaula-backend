@@ -64,8 +64,13 @@ ${JSON.stringify(output, null, 2)}
         { role: "user", content: prompt }
       ],
       temperature: 0.1,
-      max_tokens: 4096
+      max_tokens: 8192,
+      response_format: { type: "json_object" }
     });
+
+    if (response.usage) {
+      console.log(JSON.stringify({ agent: "review", type, prompt_tokens: response.usage.prompt_tokens, completion_tokens: response.usage.completion_tokens }));
+    }
 
     const content = response.choices[0].message.content.trim();
     const clean = content.replace(/```json|```/g, "").trim();

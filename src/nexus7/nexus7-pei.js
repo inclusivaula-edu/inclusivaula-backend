@@ -198,12 +198,14 @@ Retorne APENAS um JSON válido, sem texto fora do JSON, sem markdown.
 conhecimento da Lei 13.146/2015, Decreto 7.611/2011, Res. CNE/CEB 4/2009,
 LDB 9.394/1996, BNCC 2018, DSM-5, CID-11 e DUA/CAST. Você elabora PEIs
 (Planos Educacionais Individualizados) completos, tecnicamente corretos e
-legalmente fundamentados. Retorne sempre JSON válido sem markdown.`
+legalmente fundamentados. TODO o conteúdo DEVE ser escrito em PORTUGUÊS
+BRASILEIRO — nunca em inglês. Retorne sempre JSON válido sem markdown.`
         },
         { role: "user", content: prompt }
       ],
       temperature: 0.3,
-      max_tokens: 4096
+      max_tokens: 4096,
+      response_format: { type: "json_object" }
     });
 
     const content = response.choices[0].message.content.trim();
