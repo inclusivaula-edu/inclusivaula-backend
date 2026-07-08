@@ -43,71 +43,77 @@ export const createLessonJob = async (input) => {
     throw new Error(insertError.message);
   }
 
-  setTimeout(async () => {
-    try {
-      // Chamada 1 (plano pedagógico) e Chamada 2 (material de aula) em paralelo
-      const [result, material] = await Promise.all([
-        runNexus7(input),
-        runNexus7Material(input).catch(err => {
-          console.error("Material de aula (non-blocking):", err.message);
-          return null;
-        })
-      ]);
-
-      const resultadoCompleto = material
-        ? { ...result, roteiro_professor: material.roteiro_professor, ficha_atividade: material.ficha_atividade }
-        : result;
-
-      const { error: updateError } = await supabase
-        .from("lessons")
-        .update({ status: "completed", result: resultadoCompleto })
-        .eq("id", id);
-
-      if (updateError) {
-        console.error("ERRO AO ATUALIZAR JOB:", updateError.message);
-      } else {
-        if (userId) await incrementarAula(userId);
-
-        // Salvar na memória do aluno
-        if (input.student_id) {
-          try {
-            const bnccCodes = (result.bncc || []).map(b => b.codigo).filter(Boolean);
-            await saveToMemory({
-              student_id: input.student_id,
-              school_id: input.school_id,
-              user_id: userId,
-              type: "lesson",
-              lesson_id: id,
-              tema: input.tema,
-              disciplina: input.disciplina,
-              serie: input.serie,
-              periodo: input.periodo,
-              deficiencia: input.deficiencia,
-              resumo: buildResume("lesson", result),
-              bncc_codes: bnccCodes
-            });
-          } catch (memErr) {
-            console.error("Memory save error (non-blocking):", memErr.message);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("ERRO NO JOB:", error.message, error.stack);
-      await supabase
-        .from("lessons")
-        .update({ status: "error", result: { error: "Falha ao gerar aula", debug: error.message } })
-        .eq("id", id);
-    } finally {
-      processingLock.delete(userId);
-    }
+  setTimeout(() => {
+    processLessonJob(id, input).finally(() => processingLock.delete(userId));
   }, 0);
 
   return { id };
 };
 
-// Cleanup de jobs presos em "processing" por mais de 10 minutos
+// Processa (ou reprocessa) um job de aula. Usado na criação e na
+// recuperação de jobs órfãos após restart do servidor.
+export const processLessonJob = async (id, input) => {
+  const userId = input?.user_id || null;
+  try {
+    // Chamada 1 (plano pedagógico) e Chamada 2 (material de aula) em paralelo
+    const [result, material] = await Promise.all([
+      runNexus7(input),
+      runNexus7Material(input).catch(err => {
+        console.error("Material de aula (non-blocking):", err.message);
+        return null;
+      })
+    ]);
+
+    const resultadoCompleto = material
+      ? { ...result, roteiro_professor: material.roteiro_professor, ficha_atividade: material.ficha_atividade }
+      : result;
+
+    const { error: updateError } = await supabase
+      .from("lessons")
+      .update({ status: "completed", result: resultadoCompleto })
+      .eq("id", id);
+
+    if (updateError) {
+      console.error("ERRO AO ATUALIZAR JOB:", updateError.message);
+    } else {
+      if (userId) await incrementarAula(userId);
+
+      // Salvar na memória do aluno
+      if (input.student_id) {
+        try {
+          const bnccCodes = (result.bncc || []).map(b => b.codigo).filter(Boolean);
+          await saveToMemory({
+            student_id: input.student_id,
+            school_id: input.school_id,
+            user_id: userId,
+            type: "lesson",
+            lesson_id: id,
+            tema: input.tema,
+            disciplina: input.disciplina,
+            serie: input.serie,
+            periodo: input.periodo,
+            deficiencia: input.deficiencia,
+            resumo: buildResume("lesson", result),
+            bncc_codes: bnccCodes
+          });
+        } catch (memErr) {
+          console.error("Memory save error (non-blocking):", memErr.message);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("ERRO NO JOB:", error.message, error.stack);
+    await supabase
+      .from("lessons")
+      .update({ status: "error", result: { error: "Falha ao gerar aula", debug: error.message } })
+      .eq("id", id);
+  }
+};
+
+// Cleanup de jobs presos em "processing" por mais de 15 minutos
+// (janela maior que a da recuperação pós-restart, para não matar reprocessamentos)
 const cleanupStuckJobs = async () => {
-  const cutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
   await supabase
     .from("lessons")
     .update({ status: "error", result: { error: "Tempo limite de processamento excedido" } })

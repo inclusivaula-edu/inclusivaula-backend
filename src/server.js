@@ -42,4 +42,9 @@ app.listen(PORT, () => {
   if (!isProduction) {
     console.log(`📚 Swagger: http://localhost:${PORT}/docs`);
   }
+
+  // Retoma gerações interrompidas por restart/deploy (aulas, simulados, PEI, AEE)
+  import("./services/job-recovery.service.js")
+    .then(({ recoverOrphanJobs }) => recoverOrphanJobs())
+    .catch(err => console.error("Job recovery import error:", err.message));
 });
