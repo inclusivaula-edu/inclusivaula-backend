@@ -3,6 +3,7 @@ import { supabase } from "../config/supabase.js";
 import { internalError, sanitizeForPrompt } from "../utils/sanitize.js";
 import { v4 as uuidv4 } from "uuid";
 import { generateEstudoCasoPDF } from "../services/pdf.service.js";
+import { enviarDocx } from "../services/docx.service.js";
 
 // Processa (ou reprocessa) um estudo de caso — usado na geração e na recuperação de jobs
 export async function processCaseStudyJob(id, input) {
@@ -118,6 +119,12 @@ export const getCaseStudyPDF = async (req, res) => {
     const { data: escola } = student?.school_id
       ? await supabase.from("schools").select("id, name, city, state, address, phone, inep_code, cnpj, logo_url").eq("id", student.school_id).single()
       : { data: null };
+
+    if (req.query.formato === "docx") {
+      return enviarDocx(res, "Estudo de Caso — Avaliação Biopsicossocial", data.result,
+        { aluno: student?.full_name, escola: escola?.name, periodo: data.periodo },
+        `estudo-de-caso-${(student?.full_name || "aluno").replace(/ /g, "-")}.docx`);
+    }
 
     await generateEstudoCasoPDF({ result: data.result, student: student || {}, escola, periodo: data.periodo }, res);
   } catch (error) {

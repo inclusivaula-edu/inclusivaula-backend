@@ -5,6 +5,7 @@ import { supabase } from "../config/supabase.js";
 import { internalError, sanitizeForPrompt } from "../utils/sanitize.js";
 import { v4 as uuidv4 } from "uuid";
 import { generatePEIPDF, generateAEEPDF, generatePDIPDF } from "../services/pdf.service.js";
+import { enviarDocx } from "../services/docx.service.js";
 
 export const generatePEI = async (req, res) => {
   try {
@@ -155,6 +156,17 @@ export const getPEIPDF = async (req, res) => {
       ? await supabase.from("schools").select("id, name, city, state, address, phone, inep_code, cnpj, logo_url").eq("id", student.school_id).single()
       : { data: null };
 
+    const tituloDoc = data.doc_type === "pdi"
+      ? "PDI — Plano de Desenvolvimento Individual"
+      : "PEI — Plano Educacional Individualizado";
+
+    if (req.query.formato === "docx") {
+      const slug = data.doc_type === "pdi" ? "pdi" : "pei";
+      return enviarDocx(res, tituloDoc, data.result,
+        { aluno: student?.full_name, escola: escola?.name, periodo: data.periodo },
+        `${slug}-${(student?.full_name || "aluno").replace(/ /g, "-")}.docx`);
+    }
+
     const render = data.doc_type === "pdi" ? generatePDIPDF : generatePEIPDF;
     await render({ result: data.result, student: student || {}, escola, periodo: data.periodo }, res);
   } catch (error) {
@@ -195,6 +207,12 @@ export const getAEEPDF = async (req, res) => {
     const { data: escola } = student?.school_id
       ? await supabase.from("schools").select("id, name, city, state, address, phone, inep_code, cnpj, logo_url").eq("id", student.school_id).single()
       : { data: null };
+
+    if (req.query.formato === "docx") {
+      return enviarDocx(res, "Plano AEE — Atendimento Educacional Especializado", data.result,
+        { aluno: student?.full_name, escola: escola?.name, periodo: data.periodo },
+        `plano-aee-${(student?.full_name || "aluno").replace(/ /g, "-")}.docx`);
+    }
 
     await generateAEEPDF({ result: data.result, student: student || {}, escola, periodo: data.periodo }, res);
   } catch (error) {
