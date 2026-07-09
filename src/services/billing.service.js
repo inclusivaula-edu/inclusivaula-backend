@@ -9,9 +9,9 @@ export const PLAN_CATALOG = {
     aulas_limite: 100,
     relatorios_limite: 10,
     cycles: {
-      mensal:    { value: 49.90,  repetitions: null, description: "InclusivAula Pro — mensal" },
-      semestral: { value: 44.90,  repetitions: 6,    description: "InclusivAula Pro — semestral (6x)" },
-      anual:     { value: 39.90,  repetitions: 12,   description: "InclusivAula Pro — anual (12x)" }
+      mensal:    { value: 79.90,  repetitions: null, description: "InclusivAula Pro — mensal" },
+      semestral: { value: 67.90,  repetitions: 6,    description: "InclusivAula Pro — semestral (6x)" },
+      anual:     { value: 55.90,  repetitions: 12,   description: "InclusivAula Pro — anual (12x)" }
     }
   },
   escola_mini: {
@@ -51,7 +51,7 @@ export const PLAN_CATALOG = {
 
 export const PLANS = {
   free: { value: 0, aulas_limite: 5, relatorios_limite: 1, professores_limite: 1 },
-  pro: { value: 49.00, aulas_limite: 100, relatorios_limite: 10, professores_limite: 10 },
+  pro: { value: 79.90, aulas_limite: 100, relatorios_limite: 10, professores_limite: 10 },
   enterprise: { value: 199.00, aulas_limite: -1, relatorios_limite: -1, professores_limite: -1 }
 };
 
