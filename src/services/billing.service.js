@@ -10,8 +10,8 @@ export const PLAN_CATALOG = {
     relatorios_limite: 10,
     cycles: {
       mensal:    { value: 79.90,  repetitions: null, description: "InclusivAula Pro — mensal" },
-      semestral: { value: 67.90,  repetitions: 6,    description: "InclusivAula Pro — semestral (6x)" },
-      anual:     { value: 55.90,  repetitions: 12,   description: "InclusivAula Pro — anual (12x)" }
+      semestral: { value: 74.90,  repetitions: 6,    description: "InclusivAula Pro — semestral (6x)" },
+      anual:     { value: 67.90,  repetitions: 12,   description: "InclusivAula Pro — anual (12x)" }
     }
   },
   escola_mini: {
@@ -20,9 +20,9 @@ export const PLAN_CATALOG = {
     aulas_limite: -1,
     relatorios_limite: -1,
     cycles: {
-      mensal:    { value: 299.00, repetitions: null, description: "InclusivAula Escola Mini — mensal" },
-      semestral: { value: 269.00, repetitions: 6,    description: "InclusivAula Escola Mini — semestral (6x)" },
-      anual:     { value: 239.00, repetitions: 12,   description: "InclusivAula Escola Mini — anual (12x)" }
+      mensal:    { value: 659.00, repetitions: null, description: "InclusivAula Escola Mini — mensal" },
+      semestral: { value: 613.00, repetitions: 6,    description: "InclusivAula Escola Mini — semestral (6x)" },
+      anual:     { value: 559.00, repetitions: 12,   description: "InclusivAula Escola Mini — anual (12x)" }
     }
   },
   escola_standard: {
@@ -31,9 +31,9 @@ export const PLAN_CATALOG = {
     aulas_limite: -1,
     relatorios_limite: -1,
     cycles: {
-      mensal:    { value: 798.00, repetitions: null, description: "InclusivAula Escola Standard — mensal" },
-      semestral: { value: 718.00, repetitions: 6,    description: "InclusivAula Escola Standard — semestral (6x)" },
-      anual:     { value: 638.00, repetitions: 12,   description: "InclusivAula Escola Standard — anual (12x)" }
+      mensal:    { value: 1649.00, repetitions: null, description: "InclusivAula Escola Standard — mensal" },
+      semestral: { value: 1529.00, repetitions: 6,    description: "InclusivAula Escola Standard — semestral (6x)" },
+      anual:     { value: 1399.00, repetitions: 12,   description: "InclusivAula Escola Standard — anual (12x)" }
     }
   },
   premium: {
@@ -42,9 +42,9 @@ export const PLAN_CATALOG = {
     aulas_limite: -1,
     relatorios_limite: -1,
     cycles: {
-      mensal:    { value: 2499.00, repetitions: null, description: "InclusivAula Premium — mensal" },
-      semestral: { value: 2249.00, repetitions: 6,    description: "InclusivAula Premium — semestral (6x)" },
-      anual:     { value: 1999.00, repetitions: 12,   description: "InclusivAula Premium — anual (12x)" }
+      mensal:    { value: 3299.00, repetitions: null, description: "InclusivAula Premium — mensal" },
+      semestral: { value: 3069.00, repetitions: 6,    description: "InclusivAula Premium — semestral (6x)" },
+      anual:     { value: 2799.00, repetitions: 12,   description: "InclusivAula Premium — anual (12x)" }
     }
   }
 };
