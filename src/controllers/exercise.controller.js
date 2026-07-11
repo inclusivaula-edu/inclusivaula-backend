@@ -6,23 +6,29 @@ import PDFDocument from "pdfkit";
 
 export const generateExercises = async (req, res) => {
   try {
-    const { lessonId, studentId, quantidade = 5, pontuacao = 10 } = req.body;
+    const { lessonId, lessonIds, studentId, quantidade = 5, pontuacao = 10 } = req.body;
 
-    if (!lessonId) {
+    // Aceita lessonIds (array) ou lessonId (legado)
+    const ids = Array.isArray(lessonIds) && lessonIds.length > 0
+      ? lessonIds.slice(0, 10)
+      : (lessonId ? [lessonId] : []);
+
+    if (ids.length === 0) {
       return res.status(400).json({ success: false, error: "lessonId é obrigatório" });
     }
 
     const qtd = Math.min(Math.max(Number(quantidade) || 5, 1), 20);
 
-    const { data: lesson, error: lessonError } = await supabase
+    const { data: lessons, error: lessonError } = await supabase
       .from("lessons").select("*")
-      .eq("id", lessonId)
-      .eq("teacher_id", req.user?.id)
-      .single();
+      .in("id", ids)
+      .eq("teacher_id", req.user?.id);
 
-    if (lessonError || !lesson) {
+    if (lessonError || !lessons || lessons.length !== ids.length) {
       return res.status(404).json({ success: false, error: "Aula não encontrada" });
     }
+
+    const lesson = lessons[0];
 
     let student = null;
     if (studentId) {
@@ -38,12 +44,12 @@ export const generateExercises = async (req, res) => {
     }
 
     const pts = Math.min(Math.max(Number(pontuacao) || 10, 1), 100);
-    const exercicios = await runNexus7Exercises({ lesson, student, quantidade: qtd, pontuacao: pts });
+    const exercicios = await runNexus7Exercises({ lesson, lessons, student, quantidade: qtd, pontuacao: pts });
 
     const { data: saved, error: saveError } = await supabase
       .from("activities")
       .insert([{
-        lesson_id: lessonId,
+        lesson_id: ids[0],
         school_id: req.schoolId,
         teacher_id: req.user?.id,
         title: exercicios.titulo,
