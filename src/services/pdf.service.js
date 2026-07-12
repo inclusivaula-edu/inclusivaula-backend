@@ -469,6 +469,29 @@ async function gerarPDFPlanoAEE(doc, aee, student, escola, periodo, titulo) {
   if (aee.avaliacao_inicial?.barreiras_aprendizagem?.length)
     y = desenharLista(doc, "Barreiras de Aprendizagem", aee.avaliacao_inicial.barreiras_aprendizagem, CORES.amarelo, y);
 
+  // 6. Desenvolvimento do(a) estudante (dificuldades e potencialidades)
+  if (aee.desenvolvimento_do_estudante) {
+    const de = aee.desenvolvimento_do_estudante;
+    const fc = de.funcao_cognitiva || {};
+    const partesCognitiva = [
+      fc.percepcao ? `Percepção: ${fc.percepcao}` : "",
+      fc.atencao ? `Atenção: ${fc.atencao}` : "",
+      fc.memoria ? `Memória: ${fc.memoria}` : "",
+      fc.linguagem ? `Linguagem: ${fc.linguagem}` : "",
+      fc.raciocinio_logico ? `Raciocínio lógico: ${fc.raciocinio_logico}` : ""
+    ].filter(Boolean);
+    if (partesCognitiva.length)
+      y = desenharLista(doc, "Desenvolvimento do Estudante — Função Cognitiva", partesCognitiva, CORES.roxo, y);
+
+    const motora = de.funcao_motora_psicomotora?.desenvolvimento_e_capacidade_motora;
+    if (motora)
+      y = desenharSecao(doc, "Função Motora e Psicomotora", motora, CORES.azul, y);
+
+    const afetiva = de.funcao_interpessoal_afetiva?.area_emocional_afetiva_social;
+    if (afetiva)
+      y = desenharSecao(doc, "Funções Interpessoais — Afetivas (emocional, afetiva e social)", afetiva, CORES.verde, y);
+  }
+
   if (aee.plano_atendimento) {
     const pa = aee.plano_atendimento;
     const resumo = [
@@ -512,10 +535,10 @@ async function gerarPDFPlanoAEE(doc, aee, student, escola, periodo, titulo) {
 // ─────────────────────────────────────────────────────────────────
 export const generateAEEPDF = async (docData, res) => {
   const student = docData.student || {};
-  const nomeArquivo = `plano-aee-${(student.full_name || "aluno").replace(/ /g, "-")}.pdf`;
+  const nomeArquivo = `paee-${(student.full_name || "aluno").replace(/ /g, "-")}.pdf`;
   const doc = criarDoc();
   await gerarPDFPlanoAEE(doc, docData.result || {}, student, docData.escola, docData.periodo,
-    "Plano AEE — Atendimento Educacional Especializado");
+    "PAEE — Plano de Atendimento Educacional Especializado");
   await enviarPDF(doc, res, nomeArquivo);
 };
 

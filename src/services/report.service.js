@@ -209,6 +209,21 @@ Retorne APENAS JSON válido (sem markdown):
     "habilidades_preservadas": ["habilidade 1", "habilidade 2", "habilidade 3"],
     "barreiras_aprendizagem": ["barreira 1", "barreira 2", "barreira 3"]
   },
+  "desenvolvimento_do_estudante": {
+    "funcao_cognitiva": {
+      "percepcao": "dificuldades e potencialidades na percepção de estímulos sensoriais",
+      "atencao": "dificuldades e potencialidades de foco e sustentação da atenção",
+      "memoria": "dificuldades e potencialidades de memória de curto e longo prazo",
+      "linguagem": "dificuldades e potencialidades no desenvolvimento verbal e na compreensão",
+      "raciocinio_logico": "dificuldades e potencialidades na resolução de problemas e sequência lógica"
+    },
+    "funcao_motora_psicomotora": {
+      "desenvolvimento_e_capacidade_motora": "coordenação, equilíbrio e exploração do espaço — dificuldades e potencialidades"
+    },
+    "funcao_interpessoal_afetiva": {
+      "area_emocional_afetiva_social": "autoconfiança, frustrações, vínculos e comunicação — dificuldades e potencialidades"
+    }
+  },
   "plano_atendimento": {
     "frequencia": "2 sessões semanais de 50 minutos",
     "duracao": "50 minutos",

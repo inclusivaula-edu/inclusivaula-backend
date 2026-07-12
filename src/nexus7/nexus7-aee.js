@@ -72,6 +72,22 @@ Retorne APENAS um JSON válido, sem texto adicional, sem markdown.
     "barreiras_aprendizagem": ["barreira 1", "barreira 2", "barreira 3"],
     "necessidades_especificas": "descrição detalhada das necessidades específicas do aluno baseada no perfil de NEE"
   },
+  "desenvolvimento_do_estudante": {
+    "observacao": "Considere SEMPRE dificuldades E potencialidades em cada função — nunca só déficits.",
+    "funcao_cognitiva": {
+      "percepcao": "como o aluno percebe estímulos sensoriais (visuais, sonoros, táteis) — dificuldades e potencialidades",
+      "atencao": "capacidade de foco, sustentação e seletividade da atenção — dificuldades e potencialidades",
+      "memoria": "memória de curto e longo prazo, retenção e manipulação de informações — dificuldades e potencialidades",
+      "linguagem": "desenvolvimento verbal, compreensão, expressão, ironias/metáforas, gestos — dificuldades e potencialidades",
+      "raciocinio_logico": "resolução de problemas, sequência lógica, jogos e desafios — dificuldades e potencialidades"
+    },
+    "funcao_motora_psicomotora": {
+      "desenvolvimento_e_capacidade_motora": "coordenação motora fina e ampla, equilíbrio, exploração do espaço, desenho, escrita, recorte — dificuldades e potencialidades"
+    },
+    "funcao_interpessoal_afetiva": {
+      "area_emocional_afetiva_social": "autoconfiança, lida com frustrações, vínculos com família e colegas, comunicação e expressão, participação em grupos — dificuldades e potencialidades"
+    }
+  },
   "plano_atendimento": {
     "objetivos": [
       "objetivo específico 1 do AEE para este aluno",
