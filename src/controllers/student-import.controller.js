@@ -1,6 +1,39 @@
 import { supabase } from "../config/supabase.js";
 import { audit } from "../services/audit.service.js";
 import { internalError } from "../utils/sanitize.js";
+import { runNexus7Extracao } from "../nexus7/nexus7-extracao.js";
+
+// Extrai dados estruturados de um documento legado (PEI antigo/laudo) via IA
+export const extractLegacyController = async (req, res) => {
+  try {
+    const { texto } = req.body;
+    if (!texto || String(texto).trim().length < 100) {
+      return res.status(400).json({ success: false, error: "Envie o texto do documento (mínimo 100 caracteres)." });
+    }
+
+    const { data: student } = await supabase
+      .from("students").select("*")
+      .eq("id", req.params.id)
+      .eq("school_id", req.schoolId)
+      .single();
+    if (!student) return res.status(404).json({ success: false, error: "Aluno não encontrado" });
+
+    const extraido = await runNexus7Extracao({ textoLegado: texto, student });
+
+    await audit({
+      req,
+      action: "student.extract_legacy",
+      resourceType: "student",
+      resourceId: student.id,
+      metadata: { chars: String(texto).length }
+    });
+
+    return res.json({ success: true, data: extraido });
+  } catch (error) {
+    console.error("extractLegacy:", error.message);
+    return res.status(500).json({ success: false, error: internalError(error) });
+  }
+};
 
 const MAX_LINHAS = 500;
 

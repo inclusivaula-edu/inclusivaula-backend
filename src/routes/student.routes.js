@@ -6,7 +6,7 @@ import {
   updateStudentController,
   deleteStudentController
 } from "../controllers/student.controller.js";
-import { importStudentsController } from "../controllers/student-import.controller.js";
+import { importStudentsController, extractLegacyController } from "../controllers/student-import.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { tenantGuard } from "../middlewares/tenantGuard.middleware.js";
 import { requireRole } from "../middlewares/role.middleware.js";
@@ -16,6 +16,7 @@ const router = express.Router();
 
 router.post("/students", authMiddleware, createStudentController);
 router.post("/students/import", authMiddleware, requireRole("coordenador"), importStudentsController);
+router.post("/students-extract/:id", authMiddleware, tenantGuard("student"), extractLegacyController);
 router.get("/students", authMiddleware, getStudentsController);
 router.get("/students/:id", authMiddleware, tenantGuard("student"), getStudentByIdController);
 router.put("/students/:id", authMiddleware, tenantGuard("student"), updateStudentController);
