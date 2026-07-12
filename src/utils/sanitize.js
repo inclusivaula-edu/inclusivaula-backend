@@ -10,7 +10,10 @@ function pickFields(body, allowed) {
 export function pickStudentFields(body) {
   return pickFields(body, [
     "full_name", "grade", "birth_date", "disability_type",
-    "notes", "guardian_name", "guardian_phone", "guardian_email", "turma"
+    "notes", "guardian_name", "guardian_phone", "guardian_email", "turma",
+    "observable_behavior", "what_helps",
+    "endereco", "historico_escolar", "deficiencia_hipotese", "sistema_linguistico",
+    "recursos_acessibilidade", "atividades_adaptacoes", "implicacoes_curriculares"
   ]);
 }
 

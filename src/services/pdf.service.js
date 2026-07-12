@@ -469,6 +469,21 @@ async function gerarPDFPlanoAEE(doc, aee, student, escola, periodo, titulo) {
   if (aee.avaliacao_inicial?.barreiras_aprendizagem?.length)
     y = desenharLista(doc, "Barreiras de Aprendizagem", aee.avaliacao_inicial.barreiras_aprendizagem, CORES.amarelo, y);
 
+  // 4. Necessidades Educacionais Especiais do(a) Estudante
+  if (aee.necessidades_educacionais_especiais) {
+    const nee4 = aee.necessidades_educacionais_especiais;
+    const itens4 = [
+      nee4.deficiencia_hipotese ? `4.1 Deficiência/hipótese específica: ${nee4.deficiencia_hipotese}` : "",
+      nee4.sistema_linguistico ? `4.2 Sistema linguístico de comunicação: ${nee4.sistema_linguistico}` : "",
+      nee4.recursos_acessibilidade_utilizados ? `4.3 Recursos de acessibilidade já utilizados: ${nee4.recursos_acessibilidade_utilizados}` : "",
+      nee4.atividades_adaptacoes_pretendidas ? `4.4 Atividades/adaptações pretendidas e recursos a providenciar: ${nee4.atividades_adaptacoes_pretendidas}` : "",
+      nee4.implicacoes_acessibilidade_curricular ? `4.5 Implicações da NEE para a acessibilidade curricular: ${nee4.implicacoes_acessibilidade_curricular}` : "",
+      nee4.outras_informacoes_relevantes ? `4.6 Outras informações relevantes: ${nee4.outras_informacoes_relevantes}` : ""
+    ].filter(Boolean);
+    if (itens4.length)
+      y = desenharLista(doc, "Necessidades Educacionais Especiais do(a) Estudante", itens4, CORES.roxo, y);
+  }
+
   // 6. Desenvolvimento do(a) estudante (dificuldades e potencialidades)
   if (aee.desenvolvimento_do_estudante) {
     const de = aee.desenvolvimento_do_estudante;
