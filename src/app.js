@@ -35,6 +35,7 @@ import simuladoRoutes from "./routes/simulado.routes.js";
 import lgpdRoutes from "./routes/lgpd.routes.js";
 import managementRoutes from "./routes/management.routes.js";
 import agendaRoutes from "./routes/agenda.routes.js";
+import inviteRoutes from "./routes/invite.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -172,6 +173,7 @@ app.use("/api", simuladoRoutes);
 app.use("/api", lgpdRoutes);
 app.use("/api", managementRoutes);
 app.use("/api", agendaRoutes);
+app.use("/api", inviteRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
