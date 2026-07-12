@@ -128,6 +128,7 @@ export const importStudentsController = async (req, res) => {
 
       validos.push({
         school_id: req.schoolId,
+        created_by: req.user?.id || null,
         full_name: nome.substring(0, 200),
         birth_date: nascimento,
         grade: String(linha.grade || "").trim().substring(0, 50) || null,

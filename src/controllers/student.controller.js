@@ -9,7 +9,7 @@ import { internalError } from "../utils/sanitize.js";
 
 export const createStudentController = async (req, res) => {
   try {
-    const student = await createStudent(req.body, req.schoolId);
+    const student = await createStudent(req.body, req.schoolId, req.user?.id);
     return res.status(201).json({ success: true, data: student });
   } catch (error) {
     console.error("createStudent:", error.message);
@@ -19,7 +19,7 @@ export const createStudentController = async (req, res) => {
 
 export const getStudentsController = async (req, res) => {
   try {
-    const students = await getStudents(req.schoolId);
+    const students = await getStudents(req.schoolId, { userId: req.user?.id, role: req.role });
     return res.json({ success: true, data: students });
   } catch (error) {
     console.error("getStudents:", error.message);
