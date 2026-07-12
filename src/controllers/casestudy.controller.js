@@ -1,6 +1,7 @@
 import { runNexus7EstudoCaso } from "../nexus7/nexus7-estudo-caso.js";
 import { supabase } from "../config/supabase.js";
 import { internalError, sanitizeForPrompt } from "../utils/sanitize.js";
+import { veTodosDaEscola } from "../utils/visibility.js";
 import { v4 as uuidv4 } from "uuid";
 import { generateEstudoCasoPDF } from "../services/pdf.service.js";
 import { enviarDocx } from "../services/docx.service.js";
@@ -93,6 +94,8 @@ export const listCaseStudies = async (req, res) => {
 
     if (req.schoolId) query = query.eq("school_id", req.schoolId);
     else query = query.eq("user_id", req.user.id);
+    // Professor comum só vê os estudos de caso que ele mesmo gerou
+    if (!veTodosDaEscola(req.role)) query = query.eq("user_id", req.user.id);
     if (student_id) query = query.eq("student_id", student_id);
 
     const { data, error } = await query;

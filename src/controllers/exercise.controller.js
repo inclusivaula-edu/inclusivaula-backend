@@ -119,6 +119,7 @@ export const registerGrade = async (req, res) => {
       .insert([{
         student_id: studentId,
         school_id: req.schoolId,
+        created_by: req.user?.id || null,
         title: "Avaliação de exercícios",
         score: numScore,
         max_score: maxScore,

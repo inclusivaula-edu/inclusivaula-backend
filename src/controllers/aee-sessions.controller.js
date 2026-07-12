@@ -2,6 +2,7 @@ import { supabase } from "../config/supabase.js";
 import { internalError, sanitizeForPrompt } from "../utils/sanitize.js";
 import { generateFrequenciaAEEPDF } from "../services/pdf.service.js";
 import { runNexus7Evolucao } from "../nexus7/nexus7-evolucao.js";
+import { veTodosDaEscola } from "../utils/visibility.js";
 
 export const listSessions = async (req, res) => {
   try {
@@ -13,6 +14,8 @@ export const listSessions = async (req, res) => {
 
     if (req.schoolId) query = query.eq("school_id", req.schoolId);
     else             query = query.eq("user_id", req.user.id);
+    // Professor comum só vê os atendimentos que ele mesmo registrou
+    if (!veTodosDaEscola(req.role)) query = query.eq("user_id", req.user.id);
     if (student_id)  query = query.eq("student_id", student_id);
     if (periodo)     query = query.eq("periodo", periodo);
 

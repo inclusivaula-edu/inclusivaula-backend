@@ -3,6 +3,7 @@ import { supabase } from "../config/supabase.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { secureMiddleware } from "../middlewares/secure.middleware.js";
 import { internalError, sanitizeForPrompt } from "../utils/sanitize.js";
+import { veTodosDaEscola } from "../utils/visibility.js";
 
 const router = express.Router();
 
@@ -14,6 +15,9 @@ router.get("/agenda", authMiddleware, secureMiddleware, async (req, res) => {
       .eq("school_id", req.schoolId)
       .order("data_hora", { ascending: true })
       .limit(200);
+
+    // Professor comum só vê os próprios agendamentos
+    if (!veTodosDaEscola(req.role)) query = query.eq("user_id", req.user.id);
 
     if (req.query.todos !== "true") {
       query = query.gte("data_hora", new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString());

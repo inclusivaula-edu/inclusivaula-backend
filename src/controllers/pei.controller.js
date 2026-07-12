@@ -6,6 +6,7 @@ import { internalError, sanitizeForPrompt } from "../utils/sanitize.js";
 import { v4 as uuidv4 } from "uuid";
 import { generatePEIPDF, generateAEEPDF, generatePDIPDF } from "../services/pdf.service.js";
 import { enviarDocx } from "../services/docx.service.js";
+import { veTodosDaEscola } from "../utils/visibility.js";
 
 export const generatePEI = async (req, res) => {
   try {
@@ -108,6 +109,10 @@ export const listPEIs = async (req, res) => {
     if (req.schoolId) {
       query = query.eq("school_id", req.schoolId);
     } else {
+      query = query.eq("user_id", req.user.id);
+    }
+    // Professor comum só vê os documentos que ele mesmo gerou
+    if (!veTodosDaEscola(req.role)) {
       query = query.eq("user_id", req.user.id);
     }
 
@@ -321,6 +326,10 @@ export const listAEEs = async (req, res) => {
     if (req.schoolId) {
       query = query.eq("school_id", req.schoolId);
     } else {
+      query = query.eq("user_id", req.user.id);
+    }
+    // Professor comum só vê os documentos que ele mesmo gerou
+    if (!veTodosDaEscola(req.role)) {
       query = query.eq("user_id", req.user.id);
     }
 

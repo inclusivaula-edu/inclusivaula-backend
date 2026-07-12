@@ -43,12 +43,16 @@ export const generateReportController = async (req, res) => {
 export const getReportsByStudent = async (req, res) => {
   try {
     const { supabase } = await import("../config/supabase.js");
-    const { data, error } = await supabase
+    const { veTodosDaEscola } = await import("../utils/visibility.js");
+    let query = supabase
       .from("reports")
       .select("id, report_type, period, created_at, aprovado")
       .eq("student_id", req.params.studentId)
       .eq("school_id", req.schoolId)
       .order("created_at", { ascending: false });
+    // Professor comum só vê os relatórios que ele mesmo gerou
+    if (!veTodosDaEscola(req.role)) query = query.eq("teacher_id", req.user.id);
+    const { data, error } = await query;
     if (error) throw new Error(error.message);
     return res.json({ success: true, data: data || [] });
   } catch (error) {
@@ -63,8 +67,10 @@ export const generateReportPDFController = async (req, res) => {
 
     // Admins acessam relatórios de qualquer escola; professores só da própria escola
     const isAdmin = CARGOS_ADMIN.includes(req.cargo);
+    const { veTodosDaEscola } = await import("../utils/visibility.js");
     let query = supabase.from("reports").select("*").eq("id", req.params.reportId);
     if (!isAdmin && req.schoolId) query = query.eq("school_id", req.schoolId);
+    if (!isAdmin && !veTodosDaEscola(req.role)) query = query.eq("teacher_id", req.user.id);
 
     const { data: report, error } = await query.single();
     if (error || !report) {
