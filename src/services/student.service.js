@@ -20,15 +20,16 @@ export const createStudent = async (body, schoolId, userId = null) => {
   return data;
 };
 
-export const getStudents = async (schoolId, { userId = null, role = null } = {}) => {
+export const getStudents = async (schoolId, { userId = null, role = null, cargo = null } = {}) => {
   let query = supabase
     .from("students")
     .select("*")
     .eq("school_id", schoolId)
     .order("created_at", { ascending: false });
 
-  // Professor comum vê apenas os alunos que ele mesmo cadastrou
-  if (userId && role && !ROLES_VEEM_TODOS.includes(role)) {
+  // Professor comum vê apenas os alunos que ele mesmo cadastrou.
+  // Profissional de AEE (cargo 'aee') vê todos — atende alunos de qualquer professor.
+  if (userId && role && !ROLES_VEEM_TODOS.includes(role) && cargo !== "aee") {
     query = query.eq("created_by", userId);
   }
 

@@ -19,7 +19,7 @@ export const createStudentController = async (req, res) => {
 
 export const getStudentsController = async (req, res) => {
   try {
-    const students = await getStudents(req.schoolId, { userId: req.user?.id, role: req.role });
+    const students = await getStudents(req.schoolId, { userId: req.user?.id, role: req.role, cargo: req.cargo });
     return res.json({ success: true, data: students });
   } catch (error) {
     console.error("getStudents:", error.message);
