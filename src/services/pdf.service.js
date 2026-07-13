@@ -843,6 +843,10 @@ export const generatePEIPDF = async (docData, res) => {
       `Nível atual: ${pei.diagnostico_pedagogico.nivel_atual}\n\nEstilo de aprendizagem: ${pei.diagnostico_pedagogico.estilo_aprendizagem || "—"}`,
       CORES.azul, y);
 
+  if (pei.diagnostico_pedagogico?.desempenho_registrado)
+    y = desenharSecao(doc, "Desempenho Curricular Registrado (frequência, avaliações e AEE)",
+      pei.diagnostico_pedagogico.desempenho_registrado, CORES.roxo, y);
+
   if (pei.diagnostico_pedagogico?.potencialidades?.length)
     y = desenharLista(doc, "Potencialidades", pei.diagnostico_pedagogico.potencialidades, CORES.verde, y);
 

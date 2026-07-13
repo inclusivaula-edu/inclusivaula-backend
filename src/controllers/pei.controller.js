@@ -8,6 +8,49 @@ import { generatePEIPDF, generateAEEPDF, generatePDIPDF } from "../services/pdf.
 import { enviarDocx } from "../services/docx.service.js";
 import { veTodosDaEscola } from "../utils/visibility.js";
 
+// Compila o desempenho curricular real do aluno (frequência, notas, AEE)
+// para fundamentar o diagnóstico pedagógico do PEI/PDI em dados, não em suposição.
+async function montarDesempenho(studentId, schoolId) {
+  try {
+    const [freqRes, notasRes, sessoesRes] = await Promise.all([
+      supabase.from("attendance").select("status, present").eq("student_id", studentId).eq("school_id", schoolId).limit(400),
+      supabase.from("evaluations").select("title, score, max_score, evaluation_date").eq("student_id", studentId).eq("school_id", schoolId).order("evaluation_date", { ascending: false }).limit(10),
+      supabase.from("aee_sessions").select("data_sessao, evolucao").eq("student_id", studentId).eq("school_id", schoolId).order("data_sessao", { ascending: false }).limit(5)
+    ]);
+
+    const partes = [];
+
+    const freq = freqRes.data || [];
+    if (freq.length > 0) {
+      const presentes = freq.filter(a => a.status === "present" || a.present === true).length;
+      const faltas = freq.length - presentes;
+      const taxa = ((presentes / freq.length) * 100).toFixed(0);
+      partes.push(`Frequência: ${taxa}% de presença (${presentes} presenças e ${faltas} falta(s) em ${freq.length} registros)`);
+    }
+
+    const notas = notasRes.data || [];
+    if (notas.length > 0) {
+      const media = (notas.reduce((s, n) => s + (Number(n.score) / (Number(n.max_score) || 10)) * 10, 0) / notas.length).toFixed(1);
+      const lista = notas.slice(0, 6).map(n =>
+        `${sanitizeForPrompt(String(n.title || "Avaliação").substring(0, 60))}: ${n.score}/${n.max_score || 10}${n.evaluation_date ? ` (${n.evaluation_date})` : ""}`
+      ).join("; ");
+      partes.push(`Avaliações (média geral ${media}/10, ${notas.length} registro(s)): ${lista}`);
+    }
+
+    const sessoes = sessoesRes.data || [];
+    if (sessoes.length > 0) {
+      const evolucoes = sessoes.filter(s => s.evolucao).slice(0, 3)
+        .map(s => `${s.data_sessao}: ${sanitizeForPrompt(String(s.evolucao).substring(0, 200))}`).join(" | ");
+      partes.push(`Atendimentos AEE recentes (${sessoes.length} sessão(ões))${evolucoes ? ` — evolução registrada: ${evolucoes}` : ""}`);
+    }
+
+    return partes.length > 0 ? partes.join("\n") : null;
+  } catch (err) {
+    console.error("montarDesempenho:", err.message);
+    return null; // desempenho é enriquecimento — nunca deve travar a geração
+  }
+}
+
 export const generatePEI = async (req, res) => {
   try {
     const { student_id, periodo, escola } = req.body;
@@ -21,7 +64,7 @@ export const generatePEI = async (req, res) => {
 
     const { data: student, error: studentError } = await supabase
       .from("students")
-      .select("full_name, grade, disability_type, notes, guardian_name, school_id")
+      .select("*")
       .eq("id", student_id)
       .single();
 
@@ -36,6 +79,7 @@ export const generatePEI = async (req, res) => {
     const id = uuidv4();
     const input = {
       student,
+      desempenho: await montarDesempenho(student_id, req.schoolId),
       periodo: sanitizeForPrompt(periodo),
       escola: sanitizeForPrompt(escola || ""),
       teacher: req.profile?.full_name || ""
@@ -239,7 +283,7 @@ export const generateAEE = async (req, res) => {
 
     const { data: student, error: studentError } = await supabase
       .from("students")
-      .select("full_name, grade, disability_type, notes, guardian_name, school_id")
+      .select("*")
       .eq("id", student_id)
       .single();
 
@@ -360,7 +404,7 @@ export const generatePDI = async (req, res) => {
 
     const { data: student, error: studentError } = await supabase
       .from("students")
-      .select("full_name, grade, disability_type, notes, guardian_name, school_id")
+      .select("*")
       .eq("id", student_id)
       .single();
 
@@ -374,6 +418,7 @@ export const generatePDI = async (req, res) => {
     const id = uuidv4();
     const input = {
       student,
+      desempenho: await montarDesempenho(student_id, req.schoolId),
       periodo: sanitizeForPrompt(periodo),
       escola: sanitizeForPrompt(escola || ""),
       teacher: req.profile?.full_name || ""
