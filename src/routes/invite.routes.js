@@ -30,21 +30,41 @@ router.get("/school/invite", authMiddleware, secureMiddleware, requireRole("coor
       await supabase.from("schools").update({ invite_code: inviteCode }).eq("id", school.id);
     }
 
-    const { count: professoresAtivos } = await supabase
+    const { data: perfis } = await supabase
       .from("profiles")
-      .select("id", { count: "exact", head: true })
+      .select("cargo")
       .eq("school_id", req.schoolId);
 
     const plan = await getCurrentPlan(req.schoolId);
+
+    // Plano gratuito: 6 vagas com papéis definidos
+    let vagasFree = null;
+    if (plan.plan === "free") {
+      const slotDoCargo = (cargo) => {
+        if (cargo === "diretor") return "diretor";
+        if (["coordenador", "coordenador_municipal", "coordenador_estadual", "secretario_municipal", "secretario_estadual"].includes(cargo)) return "coordenador";
+        if (cargo === "aee") return "aee";
+        return "professor";
+      };
+      const usadas = { diretor: 0, coordenador: 0, aee: 0, professor: 0 };
+      for (const p of perfis || []) usadas[slotDoCargo(p.cargo || "professor")]++;
+      vagasFree = {
+        diretor: { usadas: usadas.diretor, limite: 1, rotulo: "Diretor(a)" },
+        coordenador: { usadas: usadas.coordenador, limite: 1, rotulo: "Coordenador(a) pedagógico(a)" },
+        aee: { usadas: usadas.aee, limite: 1, rotulo: "Profissional de AEE" },
+        professor: { usadas: usadas.professor, limite: 3, rotulo: "Professores(as)" }
+      };
+    }
 
     return res.json({
       success: true,
       data: {
         schoolName: school.name,
         inviteCode,
-        professoresAtivos: professoresAtivos || 0,
+        professoresAtivos: (perfis || []).length,
         professoresLimite: plan.professores_limite,
-        plano: plan.plan
+        plano: plan.plan,
+        vagasFree
       }
     });
   } catch (error) {

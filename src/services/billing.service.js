@@ -50,7 +50,8 @@ export const PLAN_CATALOG = {
 };
 
 export const PLANS = {
-  free: { value: 0, aulas_limite: 5, relatorios_limite: 1, professores_limite: 1 },
+  // Free por escola: 6 vagas com papéis — 1 diretor, 1 coordenador, 1 profissional de AEE, 3 professores
+  free: { value: 0, aulas_limite: 5, relatorios_limite: 1, professores_limite: 6 },
   pro: { value: 79.90, aulas_limite: 100, relatorios_limite: 10, professores_limite: 10 },
   enterprise: { value: 199.00, aulas_limite: -1, relatorios_limite: -1, professores_limite: -1 }
 };
@@ -88,7 +89,7 @@ export async function getCurrentPlan(schoolId) {
     status: "active",
     aulas_limite: 5,
     relatorios_limite: 1,
-    professores_limite: 1
+    professores_limite: 6
   };
 }
 
