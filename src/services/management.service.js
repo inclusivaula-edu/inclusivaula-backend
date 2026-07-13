@@ -32,17 +32,13 @@ async function contar(tabela, filtros = {}) {
 export async function getSchoolOverview(schoolId) {
   const [
     alunos, professores, turmas,
-    peiTotal, peiConcluidos, aeeTotal, aeeConcluidos,
     aulas30d, atividadesTotal,
-    { data: attendance }, { data: evaluations }, { data: nee }
+    { data: attendance }, { data: evaluations }, { data: nee },
+    { data: peiDocs }, { data: aeeDocs }, { data: caseDocs }
   ] = await Promise.all([
     contar("students", { school_id: schoolId }),
     contar("teachers", { school_id: schoolId }),
     contar("classes", { school_id: schoolId }),
-    contar("pei_documents", { school_id: schoolId }),
-    contar("pei_documents", { school_id: schoolId, status: "completed" }),
-    contar("aee_documents", { school_id: schoolId }),
-    contar("aee_documents", { school_id: schoolId, status: "completed" }),
     supabase.from("lessons").select("id", { count: "exact", head: true })
       .eq("school_id", schoolId).eq("status", "completed")
       .gte("created_at", new Date(Date.now() - 30 * 86400000).toISOString())
@@ -50,8 +46,45 @@ export async function getSchoolOverview(schoolId) {
     contar("activities", { school_id: schoolId }),
     supabase.from("attendance").select("status").eq("school_id", schoolId),
     supabase.from("evaluations").select("score, max_score").eq("school_id", schoolId),
-    supabase.from("students").select("disability_type").eq("school_id", schoolId)
+    supabase.from("students").select("id, full_name, disability_type").eq("school_id", schoolId),
+    supabase.from("pei_documents").select("student_id, doc_type, status, aprovado").eq("school_id", schoolId),
+    supabase.from("aee_documents").select("student_id, status, aprovado").eq("school_id", schoolId),
+    supabase.from("case_studies").select("student_id, status, aprovado").eq("school_id", schoolId)
   ]);
+
+  // Separa PEI de PDI (mesma tabela, doc_type distingue)
+  const soPei = (peiDocs || []).filter(d => (d.doc_type || "pei") === "pei");
+  const soPdi = (peiDocs || []).filter(d => d.doc_type === "pdi");
+  const peiTotal = soPei.length;
+  const peiConcluidos = soPei.filter(d => d.status === "completed").length;
+  const pdiTotal = soPdi.length;
+  const pdiConcluidos = soPdi.filter(d => d.status === "completed").length;
+  const aeeTotal = (aeeDocs || []).length;
+  const aeeConcluidos = (aeeDocs || []).filter(d => d.status === "completed").length;
+  const estudoTotal = (caseDocs || []).length;
+  const estudoConcluidos = (caseDocs || []).filter(d => d.status === "completed").length;
+
+  // Pendências documentais: aluno com NEE deve ter estudo de caso, PEI e PAEE
+  const temDoc = (docs, studentId) =>
+    docs.some(d => d.student_id === studentId && d.status === "completed");
+  const alunosNEE = (nee || []).filter(s => s.disability_type);
+  const pendencias = alunosNEE.map(s => ({
+    id: s.id,
+    nome: s.full_name,
+    nee: s.disability_type,
+    tem_estudo_caso: temDoc(caseDocs || [], s.id),
+    tem_pei: temDoc(soPei, s.id),
+    tem_paee: temDoc(aeeDocs || [], s.id)
+  }));
+  const pendenciasResumo = {
+    total_nee: alunosNEE.length,
+    sem_estudo_caso: pendencias.filter(p => !p.tem_estudo_caso).length,
+    sem_pei: pendencias.filter(p => !p.tem_pei).length,
+    sem_paee: pendencias.filter(p => !p.tem_paee).length,
+    alunos: pendencias.sort((a, b) =>
+      (a.tem_estudo_caso + a.tem_pei + a.tem_paee) - (b.tem_estudo_caso + b.tem_pei + b.tem_paee)
+    )
+  };
 
   const totalPresencas = (attendance || []).filter(a => a.status === "present").length;
   const taxaFrequencia = attendance?.length
@@ -83,8 +116,11 @@ export async function getSchoolOverview(schoolId) {
     desempenho: { media_notas: mediaNotas, avaliacoes: notas.length },
     documentos: {
       pei: { total: peiTotal, concluidos: peiConcluidos },
-      aee: { total: aeeTotal, concluidos: aeeConcluidos }
+      pdi: { total: pdiTotal, concluidos: pdiConcluidos },
+      aee: { total: aeeTotal, concluidos: aeeConcluidos },
+      estudo_caso: { total: estudoTotal, concluidos: estudoConcluidos }
     },
+    pendencias_documentais: pendenciasResumo,
     nee_por_tipo: neePorTipo,
     alertas_pedagogicos: alertas,
     predicoes
