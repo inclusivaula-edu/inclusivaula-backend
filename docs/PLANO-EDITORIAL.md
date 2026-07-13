@@ -19,6 +19,12 @@ critérios de qualidade do documento original, que são sólidos.
 | Plano de aula adaptado | /recursos/plano-de-aula-adaptado/ |
 | AEE na prática | /recursos/aee/ |
 
+## Já publicado (13/07/2026)
+
+| Página | URL | PR |
+|---|---|---|
+| PEI para Autismo (TEA) | /recursos/pei-para-autismo-tea/ | [inclusivaula-frontend#1](https://github.com/inclusivaula-edu/inclusivaula-frontend/pull/1) |
+
 ## Princípio do ritmo
 
 **2 a 4 páginas novas por mês**, no mesmo padrão técnico das já publicadas
@@ -36,7 +42,7 @@ Ordem por relevância estratégica (o que professores mais buscam / o que
 diferencia a InclusivAula da concorrência):
 
 ### Mês 1
-1. **PEI para Autismo (TEA)** — perfil de maior busca isolada
+1. ~~**PEI para Autismo (TEA)**~~ — publicado em 13/07/2026, /recursos/pei-para-autismo-tea/
 2. **50 adaptações curriculares práticas** — formato lista, alto valor de compartilhamento
 3. **Guia da Lei Brasileira de Inclusão (LBI)** — autoridade legal, complementa a Portaria 421
 
