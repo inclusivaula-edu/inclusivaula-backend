@@ -52,6 +52,13 @@ export async function getSchoolOverview(schoolId) {
     supabase.from("case_studies").select("student_id, status, aprovado").eq("school_id", schoolId)
   ]);
 
+  const { data: sessoesAEE } = await supabase
+    .from("aee_sessions")
+    .select("student_id, data_sessao")
+    .eq("school_id", schoolId)
+    .order("data_sessao", { ascending: false })
+    .limit(2000);
+
   // Separa PEI de PDI (mesma tabela, doc_type distingue)
   const soPei = (peiDocs || []).filter(d => (d.doc_type || "pei") === "pei");
   const soPdi = (peiDocs || []).filter(d => d.doc_type === "pdi");
@@ -76,6 +83,31 @@ export async function getSchoolOverview(schoolId) {
     tem_pei: temDoc(soPei, s.id),
     tem_paee: temDoc(aeeDocs || [], s.id)
   }));
+  // Frequência do AEE (base do FUNDEB): sessões no período e alunos NEE sem atendimento
+  const agora = Date.now();
+  const corte30d = new Date(agora - 30 * 86400000).toISOString().split("T")[0];
+  const sessoes30d = (sessoesAEE || []).filter(s => s.data_sessao >= corte30d);
+  const atendidos30d = new Set(sessoes30d.map(s => s.student_id));
+  const ultimaSessaoPorAluno = {};
+  for (const s of sessoesAEE || []) {
+    if (!ultimaSessaoPorAluno[s.student_id]) ultimaSessaoPorAluno[s.student_id] = s.data_sessao; // já ordenado desc
+  }
+  const semAtendimento = alunosNEE
+    .map(a => {
+      const ultima = ultimaSessaoPorAluno[a.id] || null;
+      const dias = ultima ? Math.floor((agora - new Date(ultima).getTime()) / 86400000) : null;
+      return { id: a.id, nome: a.full_name, nee: a.disability_type, ultima_sessao: ultima, dias_sem_atendimento: dias };
+    })
+    .filter(a => a.ultima_sessao === null || a.dias_sem_atendimento > 30)
+    .sort((x, y) => (y.dias_sem_atendimento ?? 99999) - (x.dias_sem_atendimento ?? 99999));
+
+  const frequenciaAEE = {
+    sessoes_30d: sessoes30d.length,
+    alunos_atendidos_30d: atendidos30d.size,
+    total_nee: alunosNEE.length,
+    sem_atendimento_30d: semAtendimento
+  };
+
   const pendenciasResumo = {
     total_nee: alunosNEE.length,
     sem_estudo_caso: pendencias.filter(p => !p.tem_estudo_caso).length,
@@ -121,6 +153,7 @@ export async function getSchoolOverview(schoolId) {
       estudo_caso: { total: estudoTotal, concluidos: estudoConcluidos }
     },
     pendencias_documentais: pendenciasResumo,
+    frequencia_aee: frequenciaAEE,
     nee_por_tipo: neePorTipo,
     alertas_pedagogicos: alertas,
     predicoes
