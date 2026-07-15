@@ -58,7 +58,15 @@ function normalizarNEE(valor) {
 
 function normalizarData(valor) {
   if (!valor) return null;
-  const s = String(valor).trim();
+  let s = String(valor).trim();
+  // Data serial do Excel (dias desde 1900) — ex: "39974.99967592592"
+  if (/^\d+([.,]\d+)?$/.test(s)) {
+    const serial = parseFloat(s.replace(",", "."));
+    if (serial >= 1000 && serial <= 80000) {
+      const d = new Date(Date.UTC(1899, 11, 30) + Math.round(serial) * 86400000);
+      return d.toISOString().split("T")[0];
+    }
+  }
   let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);          // ISO
   if (m) return `${m[1]}-${m[2]}-${m[3]}`;
   m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/); // dd/mm/aaaa
