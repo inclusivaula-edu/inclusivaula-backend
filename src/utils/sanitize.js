@@ -12,7 +12,9 @@ export function pickStudentFields(body) {
     "full_name", "grade", "birth_date", "disability_type",
     "notes", "guardian_name", "guardian_phone", "guardian_email", "turma",
     "observable_behavior", "what_helps",
-    "endereco", "historico_escolar", "deficiencia_hipotese", "sistema_linguistico",
+    "endereco", "endereco_numero", "endereco_bairro", "endereco_cidade",
+    "guardian_relationship",
+    "historico_escolar", "deficiencia_hipotese", "sistema_linguistico",
     "recursos_acessibilidade", "atividades_adaptacoes", "implicacoes_curriculares"
   ]);
 }
