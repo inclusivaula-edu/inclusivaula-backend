@@ -119,11 +119,46 @@ Gere dois produtos:
 
 IMPORTANTE:
 - Este material é um RASCUNHO PEDAGÓGICO para o professor editar.
-- Calibre vocabulário e complexidade para a série informada.
 - Se o perfil NEE impõe restrição, respeite na ficha.
 - O campo "acao" do Desenvolvimento deve ter NO MÍNIMO 8 frases com conteúdo real.
 - O campo "fala_sugerida" deve conter explicações do conteúdo, não só instruções.
 - NUNCA gere frases vagas como "discutam o tema" sem dizer O QUE discutir.
+
+═══════════════════════════════════════════════
+VOCABULÁRIO E COMPLEXIDADE — CALIBRAGEM OBRIGATÓRIA POR FAIXA ETÁRIA
+═══════════════════════════════════════════════
+O campo "fala_sugerida" é lido EM VOZ ALTA diretamente para a criança — não é
+texto de referência do professor, é o que a criança vai OUVIR. Erro de calibragem
+aqui é o erro mais grave que este material pode ter, especialmente para TDAH,
+TEA, Dislexia, DI e TDL, cuja capacidade de sustentar atenção em cadeia lógica
+abstrata é justamente o ponto de maior dificuldade.
+
+Aplique conforme a série informada (${serie}):
+
+- Educação Infantil / 1º-2º ano (6-7 anos): frases de até 8-10 palavras. Só
+  concreto — o que dá para ver, tocar ou fazer. Zero conceito abstrato sem
+  objeto físico associado.
+- 3º-5º ano (8-10 anos): frases de até 12-15 palavras. Conceitos abstratos
+  (poder, fronteira, território, direito, democracia, economia) só entram se
+  IMEDIATAMENTE traduzidos em exemplo concreto do mundo da criança (a casa
+  dela, a escola, o bairro, a família) — nunca definidos por outros abstratos.
+  Errado: "território é um espaço controlado por leis e regras políticas".
+  Certo: "território é como o quintal de uma casa — tem um dono e uma cerca
+  que mostra até onde ele vai; o Brasil também tem um 'quintal' enorme,
+  com fronteiras que mostram até onde ele vai".
+- 6º-9º ano (11-14 anos): frases de até 20 palavras. Abstração permitida, mas
+  sempre acompanhada de exemplo. Vocabulário técnico da disciplina pode
+  aparecer, sempre explicado na primeira menção.
+- Ensino Médio (15-17 anos): linguagem técnica da disciplina é esperada;
+  ainda assim, evite períodos de mais de 25-30 palavras em uma única frase.
+
+Regra de ouro, para qualquer série: se um adulto precisa reler a frase da
+"fala_sugerida" duas vezes para entender, ela está complexa demais para ser
+lida em voz alta a uma criança — reescreva mais simples.
+Isso vale ESPECIALMENTE para conceitos político-jurídicos, econômicos ou
+científicos abstratos (fronteira, poder, território, capital, energia,
+sistema, estrutura) — cada um precisa de uma ponte concreta antes de aparecer
+sozinho no texto.
 
 ═══════════════════════════════════════════════
 FORMATO DE RESPOSTA
@@ -184,7 +219,12 @@ O roteiro que você gera deve conter fatos, conceitos, definições, exemplos, d
 e explicações completas que o professor possa usar diretamente para ensinar.
 NUNCA gere frases vagas como "discutam as causas" sem listar e explicar QUAIS são as causas.
 TODO o conteúdo DEVE ser escrito em PORTUGUÊS BRASILEIRO — nunca em inglês.
-Calibra linguagem e complexidade para a série e o perfil de NEE do aluno.
+REGRA CRÍTICA: o campo "fala_sugerida" é lido em voz alta PARA a criança — calibre
+rigorosamente o comprimento de frase e o vocabulário à idade real da série informada
+(um aluno de 4º ano tem 9-10 anos; não escreva para ele como escreveria para o 8º ano).
+Conceitos abstratos (território, poder, fronteira, economia, sistema) exigem tradução
+concreta imediata antes de aparecer sozinhos no texto — sem isso, a criança com TDAH,
+TEA ou DI perde o fio da explicação.
 Retorna sempre JSON válido sem markdown, sem texto fora do JSON.`
         },
         { role: "user", content: prompt }
